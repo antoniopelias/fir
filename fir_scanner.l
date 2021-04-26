@@ -4,6 +4,7 @@
 // make relevant includes before including the parser's tab file
 #include <stdlib.h>
 #include <string>
+#include <cmath>
 #include <cdk/ast/sequence_node.h>
 #include <cdk/ast/expression_node.h>
 #include <cdk/ast/lvalue_node.h>
@@ -97,8 +98,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 ([0-9]*\.[0-9]+|[0-9]+\.[0-9]*)([eE][-+]?[0-9]+)? { 
                                                     fpvalue = strtod(yytext, nullptr);
                                                     if (errno == ERANGE && (fpvalue == HUGE_VALF || fpvalue == HUGE_VALL))
-                                                      return yyerror("Overflow error.");
-                                                    
+                                                      yyerror("Overflow error.");   
                                                     yylval.d = fpvalue; 
                                                     return tREAL; 
                                                     }

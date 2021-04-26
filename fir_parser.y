@@ -49,11 +49,11 @@
 %left '*' '/' '%'
 %nonassoc tUNARY
 
-%type <node> stmt program
-%type <sequence> list exprs
-%type <expression> expr
+%type <node> instruction program conditional iterative
+%type <sequence> list expressions
+%type <expression> expr funcCall
 %type <lvalue> lval
-%type <s> str
+%type <s> string
 
 %{
 //-- The rules below will be included in yyparse, the main parsing function.
@@ -63,36 +63,48 @@
 program	: tBEGIN list tEND { compiler->ast(new cdk::sequence_node(LINE, $2)); }
 	      ;
 
-list : stmt	     { $$ = new cdk::sequence_node(LINE, $1); }
-	   | list stmt { $$ = new cdk::sequence_node(LINE, $2, $1); }
-	   ;
+list : instruction	     { $$ = new cdk::sequence_node(LINE, $1); }
+	| list instruction { $$ = new cdk::sequence_node(LINE, $2, $1); }
+	;
 
-stmt : expr ';'                         { $$ = new fir::evaluation_node(LINE, $1); }
-     | tWRITE exprs ';'                 {$$ = new fir::write_node(LINE, $2);}
-     | tWRITELN exprs ';'               {$$ = new fir::writeln_node(LINE, $2);}
- //  | tLEAVE                         {$$ = new fir::leave_node(LINE);}
-//   | tLEAVE integerliteral          {$$ = new fir::leave_node(LINE, $2);}
- //  | tRESTART                         {$$ = new fir::restart_node(LINE);}
-//   | tRESTART integerliteral          {$$ = new fir::restart_node(LINE, $2);}
-//   | tPRINT expr ';'                  { $$ = new fir::print_node(LINE, $2); }
-     | tREAD lval ';'                   { $$ = new fir::read_node(LINE, $2); }
-     | tWHILE  expr tDO stmt         { $$ = new fir::while_node(LINE, $2, $4); }
-     | tWHILE  expr tDO stmt tFINALLY stmt       { $$ = new fir::while_finally_node(LINE, $2, $4, $6); }
-//   | tIF '(' expr ')' stmt %prec tIFX { $$ = new fir::if_node(LINE, $3, $5); }
-     | tIF '(' expr ')' stmt tELSE stmt { $$ = new fir::if_else_node(LINE, $3, $5, $7); }
-     | '{' list '}'                     { $$ = $2; }
+instruction : expr ';'                                    { $$ = new fir::evaluation_node(LINE, $1); }
+     | tWRITE expressions ';'                 {$$ = new fir::write_node(LINE, $2);}
+     | tWRITELN expressions ';'               {$$ = new fir::writeln_node(LINE, $2);}
+     | tLEAVE                                     {$$ = new fir::leave_node(LINE);}
+   //  | tLEAVE integerliteral                    {$$ = new fir::leave_node(LINE, $2);}
+     | tRESTART                                   {$$ = new fir::restart_node(LINE);}
+    // | tRESTART integerliteral                  {$$ = new fir::restart_node(LINE, $2);}
+     | tREAD lval ';'                             { $$ = new fir::read_node(LINE, $2); }
+     | tRETURN                                    {$$ = new fir::return_node(LINE); }
+     | conditional                                { $$ = $1; }
+     | iterative                                  { $$ = $1; }
+     | '{' list '}'                               { $$ = $2; }
      ;
-// integerliteral:;
-exprs: expr                        { $$  = new cdk::expression_node(LINE, $1);}
-     | exprs expr                  {$$ = new cdk::sequence_node(LINE, $2, $1);}
 
-str  : tSTRING                     { $$ = new cdk::string_node(LINE, $1); }
-     | str tSTRING                 { $$ = new cdk::sequence_node(LINE, $2, $1); }
+
+conditional: tIF expr tTHEN instruction %prec tIFX             { $$ = new fir::if_node(LINE, $2, $4); }
+           | tIF expr tTHEN instruction tELSE instruction             { $$ = new fir::if_else_node(LINE, $2, $4, $6); }
+
+iterative: tWHILE expr tDO instruction                      { $$ = new fir::while_node(LINE, $2, $4); }
+         | tWHILE expr tDO instruction tFINALLY instruction       { $$ = new fir::while_finally_node(LINE, $2, $4, $6); }
+
+
+
+
+// integerliteral:;
+expressions: expr                        { $$  = new cdk::expression_node(LINE, $1);}
+           | expressions ',' expr                  {$$ = new cdk::sequence_node(LINE, $3, $1);}
+           ;
+
+string          : tSTRING                       { $$ = $1; }
+                | string tSTRING                { $$ = $1; $$->append(*$2); delete $2; }
+
 
 expr : tINTEGER                    { $$ = new cdk::integer_node(LINE, $1); }
      | tREAL                      { $$ = new cdk::double_node(LINE, $1); }
 	| tSTRING                     { $$ = new cdk::string_node(LINE, $1); }
      | '-' expr %prec tUNARY       { $$ = new cdk::neg_node(LINE, $2); }
+     | '+' expr %prec tUNARY       { $$ = new fir::identity_node(LINE, $2); }
      | expr '+' expr	         { $$ = new cdk::add_node(LINE, $1, $3); }
      | expr '-' expr	         { $$ = new cdk::sub_node(LINE, $1, $3); }
      | expr '*' expr	         { $$ = new cdk::mul_node(LINE, $1, $3); }
@@ -104,14 +116,34 @@ expr : tINTEGER                    { $$ = new cdk::integer_node(LINE, $1); }
      | expr tLE expr               { $$ = new cdk::le_node(LINE, $1, $3); }
      | expr tNE expr	         { $$ = new cdk::ne_node(LINE, $1, $3); }
      | expr tEQ expr	         { $$ = new cdk::eq_node(LINE, $1, $3); }
+     | expr tOR expr                    { $$ = new cdk::or_node(LINE, $1, $3); }
+     | expr tAND expr                   { $$ = new cdk::and_node(LINE, $1, $3); }
+     | '~' expr                         { $$ = new cdk::not_node(LINE, $2); }
      | '(' expr ')'                { $$ = $2; }
      | '[' expr ']'                { $$ = new fir::stack_alloc_node(LINE, $2); }
      | lval                        { $$ = new cdk::rvalue_node(LINE, $1); }  //FIXME
+     | lval '?'                    { $$ = new fir::address_of_node(LINE, $1);}
      | lval '=' expr               { $$ = new cdk::assignment_node(LINE, $1, $3); }
+     | tSIZEOF '(' expressions ')'            { $$ = new fir::sizeof_node(LINE, new og::tuple_node(LINE, $3)); }
+     | funcCall                    { $$ = $1;}
      ;
 
-lval : tIDENTIFIER             { $$ = new cdk::variable_node(LINE, $1); }
-     | tIDENTIFIER '[' expr ']'         { $$ = new fir::index_node(LINE, $1, $3); }
+
+funcCall: tIDENTIFIER'(' expressions ')'   { $$ = new fir::function_call_node(LINE, *$1, $3); delete $1; }
+        | tIDENTIFIER'(' ')'               { $$ = new fir::function_call_node(LINE, *$1, nullptr); delete $1; }
+        ;
+
+
+funcDeclaration:;
+
+funcDefinition:;
+
+
+
+
+
+lval : tIDENTIFIER                 { $$ = new cdk::variable_node(LINE, $1); }
+     | tIDENTIFIER '[' expr ']'     { $$ = new fir::index_node(LINE, new cdk::rvalue_node(LINE, $1), $3); }  
      ;
 
 %%
