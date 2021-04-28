@@ -197,13 +197,15 @@ void fir::xml_writer::do_return_node(fir::return_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void fir::xml_writer::do_restart_node(fir::restart_node * const node, int lvl) {
-
+  openTag(node, lvl);
+  closeTag(node, lvl);
 }
 
 //---------------------------------------------------------------------------
 
 void fir::xml_writer::do_leave_node(fir::leave_node * const node, int lvl) {
-
+  openTag(node, lvl);
+  closeTag(node, lvl);
 }
 
 //---------------------------------------------------------------------------
@@ -226,7 +228,38 @@ void fir::xml_writer::do_function_declaration_node(fir::function_declaration_nod
 //---------------------------------------------------------------------------
 
 void fir::xml_writer::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
+  //ASSERT_SAFE_EXPRESSIONS;
+  reset_new_symbol();
+  if (node->block())
+    _symtab.push();
 
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='"
+  << qualifier_name(node->qualifier()) << "' type='" << to_string(node->type()) << "'>" << std::endl;
+
+  if (node->arguments()) {
+    openTag("arguments", lvl + 2);
+    if (node->block())
+    {
+      node->arguments()->accept(this, lvl + 4);
+    }
+    else
+    {
+      _symtab.push();
+      node->arguments()->accept(this, lvl + 4);
+      _symtab.pop();
+    }
+    
+    closeTag("arguments", lvl + 2);
+  }
+
+  if (node->block()) {
+    openTag("block", lvl + 2);
+    node->block()->accept(this, lvl + 4);
+    closeTag("block", lvl + 2);
+  }
+  closeTag(node, lvl);
+  if (node->block())
+    _symtab.pop();
 }
 //---------------------------------------------------------------------------
 
