@@ -4,7 +4,7 @@
 #include <cdk/ast/unary_operation_node.h>
 #include <cdk/ast/expression_node.h>
 
-namespace m19 {
+namespace fir {
 
     /**
      * Class for describing the identity operator.

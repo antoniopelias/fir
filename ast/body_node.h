@@ -7,8 +7,8 @@
 namespace fir {
 
   class body_node: public cdk::basic_node {
-    fir::block_node *_block, *_epilogue;
     fir::prologue_node *_prologue;
+    fir::block_node *_block, *_epilogue;
 
   public:
     body_node(int lineno, fir::prologue_node *prologue, fir::block_node *block,

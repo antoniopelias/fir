@@ -7,7 +7,7 @@ namespace fir {
 
   class read_node: public cdk::expression_node {
   public:
-    inline read_node(int lineno, cdk::lvalue_node *argument) :
+    inline read_node(int lineno) :
         cdk::expression_node(lineno) {
     }
 

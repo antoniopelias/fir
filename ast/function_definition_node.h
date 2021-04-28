@@ -10,8 +10,8 @@
 namespace fir {
 
   class function_definition_node: public cdk::typed_node {
-    std::string _identifier;
     int _qualifier;
+    std::string _identifier;
     cdk::sequence_node *_arguments;
     fir::body_node *_body;
 

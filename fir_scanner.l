@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string>
 #include <cmath>
+#include <climits>
+#include <sstream>
 #include <cdk/ast/sequence_node.h>
 #include <cdk/ast/expression_node.h>
 #include <cdk/ast/lvalue_node.h>
@@ -14,6 +16,7 @@
 #define yyerror LexerError
 
 float fpvalue;
+long  intvalue;
 
 // output stream for building string literals
 static std::ostringstream strlit; 
@@ -106,9 +109,21 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====[                   3.8.1 - inteiros                         ]==== */
   /* ====================================================================== */
 
-[1-9][0-9]*                 yylval.i = strtol(yytext, nullptr, 10); return tINTEGER;
+[1-9][0-9]*                 {
+                              intvalue = strtol(yytext, nullptr, 10); 
+                              if (errno == ERANGE && (fpvalue == LONG_MIN || fpvalue == LONG_MAX))
+                                yyerror("Overflow error.");
+                              yylval.i = intvalue;
+                              return tINTEGER;
+                            }
 
-[0][0-7]*                   yylval.i = strtol(yytext, NULL, 8); return tINTEGER;
+[0][0-7]*                   {
+                              intvalue = strtol(yytext, nullptr, 8); 
+                              if (errno == ERANGE && (fpvalue == LONG_MIN || fpvalue == LONG_MAX))
+                                yyerror("Overflow error.");
+                              yylval.i = intvalue;
+                              return tINTEGER;
+                            }
 
   /* ====================================================================== */
   /* ====[              3.8.3 - Cadeias de caracteres                 ]==== */

@@ -141,7 +141,7 @@ void fir::xml_writer::do_evaluation_node(fir::evaluation_node * const node, int 
 void fir::xml_writer::do_read_node(fir::read_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
-  node->argument()->accept(this, lvl + 2);
+  node->accept(this, lvl + 2);
   closeTag(node, lvl);
 }
 
@@ -286,5 +286,11 @@ void fir::xml_writer::do_prologue_node(fir::prologue_node * const node, int lvl)
 //---------------------------------------------------------------------------
 
 void fir::xml_writer::do_function_call_node(fir::function_call_node * const node, int lvl) {
+
+}
+
+//---------------------------------------------------------------------------
+
+void fir::xml_writer::do_identity_node(fir::identity_node * const node, int lvl) {
 
 }

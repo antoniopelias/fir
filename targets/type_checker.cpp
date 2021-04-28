@@ -163,7 +163,7 @@ void fir::type_checker::do_evaluation_node(fir::evaluation_node *const node, int
 
 void fir::type_checker::do_read_node(fir::read_node *const node, int lvl) {
   try {
-    node->argument()->accept(this, lvl);
+    node->accept(this, lvl);
   } catch (const std::string &id) {
     throw "undeclared variable '" + id + "'";
   }
@@ -284,5 +284,11 @@ void fir::type_checker::do_prologue_node(fir::prologue_node * const node, int lv
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_function_call_node(fir::function_call_node * const node, int lvl) {
+
+}
+
+//---------------------------------------------------------------------------
+
+void fir::type_checker::do_identity_node(fir::identity_node * const node, int lvl) {
 
 }
