@@ -1,5 +1,5 @@
 %option c++ prefix="fir_scanner_" outfile="fir_scanner.cpp"
-%option stack noyywrap yylineno 8bit
+%option stack noyywrap yylineno 8bit debug
 %{ 
 // make relevant includes before including the parser's tab file
 #include <stdlib.h>
@@ -28,6 +28,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 %x X_STRING X_COMMENT X_NULLSTRING X_OCTAL_INT X_TILDE
 %%
 
+
   /* ====================================================================== */
   /* ====[                      3.2 - COMMENTS                        ]==== */
   /* ====================================================================== */
@@ -51,20 +52,6 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 
 "sizeof"                return tSIZEOF;
 
-
-  /* ====================================================================== */
-  /* ====[                   3.5 - Operadores de expressões           ]==== */
-  /* ====[              3.6   - Delimitadores e separadores           ]==== */
-  /* ====================================================================== */
-
-[()\[\]+-?*%~=,;{}@]         return *yytext;
-
-">="                   return tGE; 
-"<="                   return tLE; 
-"=="                   return tEQ; 
-"!="                   return tNE;
-"&&"                    return tAND;
-"||"                    return tOR;
 
   /* ====================================================================== */
   /* ====[              5   - Funcoes            ]==== */
@@ -110,6 +97,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====================================================================== */
 
 [1-9][0-9]*                 {
+                      printf("ok\n");
                               intvalue = strtol(yytext, nullptr, 10); 
                               if (errno == ERANGE && (fpvalue == LONG_MIN || fpvalue == LONG_MAX))
                                 yyerror("Overflow error.");
@@ -124,6 +112,20 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
                               yylval.i = intvalue;
                               return tINTEGER;
                             }
+
+  /* ====================================================================== */
+  /* ====[                   3.5 - Operadores de expressões           ]==== */
+  /* ====[              3.6   - Delimitadores e separadores           ]==== */
+  /* ====================================================================== */
+
+[()\[\]+-?*%~=,;{}@]          printf(yytext);printf("-\n");return *yytext;
+
+">="                   return tGE; 
+"<="                   return tLE; 
+"=="                   return tEQ; 
+"!="                   return tNE;
+"&&"                    return tAND;
+"||"                    return tOR;
 
   /* ====================================================================== */
   /* ====[              3.8.3 - Cadeias de caracteres                 ]==== */

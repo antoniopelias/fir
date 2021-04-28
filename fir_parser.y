@@ -188,11 +188,17 @@ funcDeclaration: data_type     tIDENTIFIER '(' argdecs ')'                {$$ = 
                | void_type '*' tIDENTIFIER '(' argdecs ')'                      { $$ = new fir::function_declaration_node(LINE, $1, tPUBLIC, *$3, $5); }
                ;
 
-funcDefinition: data_type     tIDENTIFIER '(' argdecs ')' body { $$ = new fir::function_definition_node(LINE, $1, tPRIVATE, *$2, $4, $6); }
+funcDefinition: data_type     tIDENTIFIER '(' argdecs ')' def_retval literal body { $$ = new fir::function_definition_node(LINE, $1, tPRIVATE, *$2, $4, $7); }
               | data_type '*' tIDENTIFIER '(' argdecs ')' body { $$ = new fir::function_definition_node(LINE, $1, tPUBLIC, *$3, $5, $7); }
               | void_type     tIDENTIFIER '(' argdecs ')' body { $$ = new fir::function_definition_node(LINE, $1, tPRIVATE, *$2, $4, $6); }
               | void_type '*' tIDENTIFIER '(' argdecs ')' body { $$ = new fir::function_definition_node(LINE, $1, tPUBLIC, *$3, $5, $7); }
               ;
+
+def_retval: /* empty */
+          | tARROW tINTEGER
+          | tARROW tSTRING
+          | tARROW tREAL
+          ;
 
 body: prologue block epilogue                                    { $$ = new fir::body_node(LINE, $1, $2, $3); }
     | prologue block                                     { $$ = new fir::body_node(LINE, $1, $2, nullptr); }
