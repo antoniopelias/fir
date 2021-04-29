@@ -142,13 +142,10 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 <X_TILDE>t                 strlit << '\t'; yy_pop_state();
 <X_TILDE>~                strlit << '~'; yy_pop_state();
 <X_TILDE>\'               strlit << '\''; yy_pop_state();
-<X_TILDE>0.*"\'"           {
-                            yy_pop_state();
-                            yylval.s = new std::string(strlit.str());
-                            strlit.str(""); 
-                            yy_pop_state(); 
-                            return tSTRING;
-                          }
+<X_TILDE>[[:xdigit:]]{1,2} {
+                                strlit << (char)(unsigned char)strtoul(yytext, nullptr, 16);
+                                yy_pop_state();
+                              }
 
 <X_TILDE>.                 strlit << *yytext; yy_pop_state();
 
