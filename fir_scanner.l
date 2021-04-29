@@ -142,11 +142,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 <X_TILDE>t                 strlit << '\t'; yy_pop_state();
 <X_TILDE>~                strlit << '~'; yy_pop_state();
 <X_TILDE>\'               strlit << '\''; yy_pop_state();
-<X_TILDE>0                yy_pop_state(); yy_push_state(X_NULLSTRING);
-
-<X_TILDE>.                 strlit << *yytext; yy_pop_state();
-
-<X_NULLSTRING>\'           {
+<X_TILDE>0.*"\'"           {
                             yy_pop_state();
                             yylval.s = new std::string(strlit.str());
                             strlit.str(""); 
@@ -154,9 +150,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
                             return tSTRING;
                           }
 
-<X_NULLSTRING>~\'         ;
-<X_NULLSTRING>\n                  yyerror("Error in string.");
-<X_NULLSTRING>.            ;
+<X_TILDE>.                 strlit << *yytext; yy_pop_state();
 
 
   /* ====================================================================== */
