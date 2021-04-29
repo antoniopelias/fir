@@ -27,7 +27,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 
 %x X_STRING X_COMMENT X_NULLSTRING X_OCTAL_INT X_TILDE
 %%
-
+ {set_debug(true); yydebug=1;}
 
   /* ====================================================================== */
   /* ====[                      3.2 - COMMENTS                        ]==== */
@@ -97,7 +97,6 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====================================================================== */
 
 [1-9][0-9]*                 {
-                      printf("ok\n");
                               intvalue = strtol(yytext, nullptr, 10); 
                               if (errno == ERANGE && (fpvalue == LONG_MIN || fpvalue == LONG_MAX))
                                 yyerror("Overflow error.");
@@ -118,7 +117,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====[              3.6   - Delimitadores e separadores           ]==== */
   /* ====================================================================== */
 
-[()\[\]+-?*%~=,;{}@]          printf(yytext);printf("-\n");return *yytext;
+[()\[\]+-?*%~=,;{}@]          return *yytext;
 
 ">="                   return tGE; 
 "<="                   return tLE; 
