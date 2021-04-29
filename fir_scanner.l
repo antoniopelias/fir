@@ -1,5 +1,5 @@
 %option c++ prefix="fir_scanner_" outfile="fir_scanner.cpp"
-%option stack noyywrap yylineno 8bit debug
+%option stack noyywrap yylineno 8bit
 %{ 
 // make relevant includes before including the parser's tab file
 #include <stdlib.h>
@@ -27,7 +27,6 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 
 %x X_STRING X_COMMENT X_NULLSTRING X_OCTAL_INT X_TILDE
 %%
- {set_debug(true); yydebug=1;}
 
   /* ====================================================================== */
   /* ====[                      3.2 - COMMENTS                        ]==== */
