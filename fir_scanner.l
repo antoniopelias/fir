@@ -33,7 +33,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====[                      3.2 - COMMENTS                        ]==== */
   /* ====================================================================== */
 
-"!!".*                 ; /* ignore comments */
+"!!".*                  ; /* ignore comments */
 "(*"                    yy_push_state(X_COMMENT);  
 <X_COMMENT>"*)"         yy_pop_state();
 <X_COMMENT>.            ;
@@ -48,7 +48,7 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 "string"                return tTYPE_STRING;
 "void"                  return tTYPE_VOID;
 "null"                  return tNULL;
-[<>]                     return *yytext;
+[<>]                    return *yytext;
 
 "sizeof"                return tSIZEOF;
 
@@ -60,7 +60,6 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
 
 "return"                return tRETURN;
 "->"                    return tARROW;
-">>"                    return tEPILOGUE;
 
 "write"                 return tWRITE;
 "writeln"               return tWRITELN;
@@ -69,13 +68,13 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====[              6   - Instrucoes            ]==== */
   /* ====================================================================== */
 
-"while"                return tWHILE; 
+"while"                 return tWHILE; 
 "do"                    return tDO;
 "finally"               return tFINALLY;
 
-"if"                   return tIF; 
+"if"                    return tIF; 
 "then"                  return tTHEN;
-"else"                 return tELSE; 
+"else"                  return tELSE; 
 
 "leave"                 return tLEAVE;
 "restart"               return tRESTART;
@@ -86,31 +85,30 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
   /* ====================================================================== */
 
 ([0-9]*\.[0-9]+|[0-9]+\.[0-9]*)([eE][-+]?[0-9]+)? { 
-                                                    fpvalue = strtod(yytext, nullptr);
-                                                    if (errno == ERANGE && (fpvalue == HUGE_VALF || fpvalue == HUGE_VALL))
-                                                      yyerror("Overflow error.");   
-                                                    yylval.d = fpvalue; 
-                                                    return tREAL; 
-                                                    }
+                                                    try { yylval.d = std::stod(yytext, nullptr); 
+                                                          return tREAL; 
+                                                        } catch (std::out_of_range& e) { yyerror("Real out of range."); }
+                                                  }
+[0-9]+([eE][-+]?[0-9]+) { 
+                                                    try { yylval.d = std::stod(yytext, nullptr); 
+                                                          return tREAL; 
+                                                        } catch (std::out_of_range& e) { yyerror("Real out of range."); }
+                                                  }
   /* ====================================================================== */
   /* ====[                   3.8.1 - inteiros                         ]==== */
   /* ====================================================================== */
 
-[1-9][0-9]*                 {
-                              intvalue = strtol(yytext, nullptr, 10); 
-                              if (errno == ERANGE && (fpvalue == LONG_MIN || fpvalue == LONG_MAX))
-                                yyerror("Overflow error.");
-                              yylval.i = intvalue;
-                              return tINTEGER;
-                            }
+[1-9][0-9]*                 {try { 
+                                  yylval.i = std::stoi(yytext, nullptr, 10);
+                                  return tINTEGER;
+                                } catch (std::out_of_range& e) { yyerror("Overflow error."); }
+                              }
 
-[0][0-7]*                   {
-                              intvalue = strtol(yytext, nullptr, 8); 
-                              if (errno == ERANGE && (fpvalue == LONG_MIN || fpvalue == LONG_MAX))
-                                yyerror("Overflow error.");
-                              yylval.i = intvalue;
-                              return tINTEGER;
-                            }
+[0][0-7]*                   {try { 
+                                  yylval.i = std::stoi(yytext, nullptr, 8);
+                                  return tINTEGER;
+                                } catch (std::out_of_range& e) { yyerror("Overflow error."); }
+                              }
 
   /* ====================================================================== */
   /* ====[                   3.5 - Operadores de expressões           ]==== */
@@ -136,19 +134,29 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
                                  strlit.str("");
                                  yy_pop_state();
                                  return tSTRING;
-                               }
+                               }  
+<X_STRING>\n                  yyerror("Error in string.");
 <X_STRING>.                    strlit << *yytext;
 
 <X_TILDE>n                 strlit << '\n'; yy_pop_state();
 <X_TILDE>r                 strlit << '\r'; yy_pop_state();
 <X_TILDE>t                 strlit << '\t'; yy_pop_state();
 <X_TILDE>~                strlit << '~'; yy_pop_state();
+<X_TILDE>\'               strlit << '\''; yy_pop_state();
 <X_TILDE>0                yy_pop_state(); yy_push_state(X_NULLSTRING);
 
 <X_TILDE>.                 strlit << *yytext; yy_pop_state();
 
-<X_NULLSTRING>\'           yy_pop_state(); yy_pop_state(); return tSTRING;
+<X_NULLSTRING>\'           {
+                            yy_pop_state();
+                            yylval.s = new std::string(strlit.str());
+                            strlit.str(""); 
+                            yy_pop_state(); 
+                            return tSTRING;
+                          }
+
 <X_NULLSTRING>~\'         ;
+<X_NULLSTRING>\n                  yyerror("Error in string.");
 <X_NULLSTRING>.            ;
 
 

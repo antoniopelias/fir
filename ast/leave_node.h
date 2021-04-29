@@ -12,8 +12,12 @@ namespace fir {
   class leave_node: public cdk::basic_node {
     cdk::integer_node *_literal;
 
-  public: // integer_node ??
-    inline leave_node(int lineno, cdk::integer_node *literal = nullptr) :
+  public: 
+    inline leave_node(int lineno) :
+        cdk::basic_node(lineno), _literal(new cdk::integer_node(lineno, 1)) {
+    }
+
+    inline leave_node(int lineno, cdk::integer_node *literal) :
         cdk::basic_node(lineno), _literal(literal) {
     }
 

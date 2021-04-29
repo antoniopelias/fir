@@ -6,11 +6,13 @@
 #include "fir_parser.tab.h"
 
 static std::string qualifier_name(int qualifier) {
-  if (qualifier == tPUBLIC) return "public";
+  if (qualifier == tPUBLIC) 
+    return "public";
   if (qualifier == tPRIVATE)
     return "private";
-  else
-    return "unknown qualifier";
+  if (qualifier == tIMPORT)
+    return "import";
+  else return "unknown qualifier";
 }
 
 
@@ -52,6 +54,8 @@ void fir::xml_writer::do_integer_node(cdk::integer_node * const node, int lvl) {
 
 void fir::xml_writer::do_string_node(cdk::string_node * const node, int lvl) {
   process_literal(node, lvl);
+  //      os() << std::string(lvl, ' ') << "<" << node->label() << ">" << node->value() << "</" << node->label() << ">" << std::endl;
+
 }
 
 //---------------------------------------------------------------------------
@@ -360,7 +364,8 @@ void fir::xml_writer::do_while_finally_node(fir::while_finally_node * const node
 //---------------------------------------------------------------------------
 
 void fir::xml_writer::do_null_node(fir::null_node * const node, int lvl) {
-
+  openTag(node, lvl);
+  closeTag(node, lvl);
 }
 //---------------------------------------------------------------------------
 
