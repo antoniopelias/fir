@@ -15,3 +15,9 @@ Makefile
 cdk
 .cvsignore
 
+
+Makefile
+./usr/
+cdk
+.cvsignore
+

@@ -25,6 +25,10 @@ namespace fir {
 
   protected:
     void processUnaryExpression(cdk::unary_operation_node *const node, int lvl);
+    void processBinaryIntegerNode(cdk::expression_node *const node, int lvl);
+    void IExpression(cdk::binary_operation_node *const node, int lvl);
+    void IDExpression(cdk::binary_operation_node *const node, int lvl);
+    void PIDExpression(cdk::binary_operation_node *const node, int lvl, int pp_allowed);
     void processBinaryExpression(cdk::binary_operation_node *const node, int lvl);
     template<typename T>
     void process_literal(cdk::literal_node<T> *const node, int lvl) {

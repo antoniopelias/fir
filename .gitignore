@@ -1,3 +1,11 @@
+# Tests
+*.jpg
+*.xml
+*.dot
+*.fir
+*.output
+*.jar
+
 # Compiled Object files
 *.slo
 *.lo
