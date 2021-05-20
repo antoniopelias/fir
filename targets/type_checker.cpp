@@ -48,14 +48,54 @@ void fir::type_checker::do_null_node(fir::null_node * const node, int lvl) {
 void fir::type_checker::processUnaryExpression(cdk::unary_operation_node *const node, int lvl) {
   ASSERT_UNSPEC;
   node->argument()->accept(this, lvl + 2);
-  if (!node->argument()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in argument of unary expression");
-
-  // in Simple, expressions are always int
-  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    if (node->argument()->is_typed(cdk::TYPE_INT))
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  else if (node->argument()->is_typed(cdk::TYPE_DOUBLE))
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  else if (node->argument()->is_typed(cdk::TYPE_UNSPEC)) {
+    // TODO unspec pra float?
+    fir::read_node *read = dynamic_cast<fir::read_node*>(node->argument());
+    if(read != nullptr) {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+      node->argument()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    }
+    else
+      throw std::string("Unknown node with unspecified type.");
+  }
+  else
+    throw std::string("Wrong type in argument of unary expression (Integer or double expected).");
+}
 }
 
 void fir::type_checker::do_neg_node(cdk::neg_node *const node, int lvl) {
   processUnaryExpression(node, lvl);
+}
+
+void fir::type_checker::do_identity_node(fir::identity_node * const node, int lvl) {
+  processUnaryExpression(node, lvl);
+}
+
+void fir::type_checker::do_index_node(fir::index_node * const node, int lvl) {
+  // TODO 
+}
+
+void fir::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (node->argument()->is_typed(cdk::TYPE_INT))
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  else if (node->argument()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *read = dynamic_cast<fir::read_node*>(node->argument());
+
+    if(read != nullptr) {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+      node->argument()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    }
+    else
+      throw std::string("Unknown node with unspecified type.");
+  }
+  else
+    throw std::string("Wrong type in argument of unary expression (Integer expected).");
 }
 
 //---------------------------------------------------------------------------
@@ -169,9 +209,6 @@ void fir::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
   PIDExpression(node, lvl); // TODO errado
 }
 
-void fir::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
-  // TODO
-}
 
 void fir::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
   IDExpression(node, lvl); // TODO possivelmente errado
@@ -291,31 +328,31 @@ void fir::type_checker::do_if_else_node(fir::if_else_node *const node, int lvl) 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_return_node(fir::return_node *const node, int lvl) {
-
+  //TODO acho que e empty mas o ruben nao
 }
 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_restart_node(fir::restart_node *const node, int lvl) {
-  // Empty
+  // verificar verificar argumento
 }
 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_leave_node(fir::leave_node *const node, int lvl) {
-  // Empty
+  // argumento
 }
 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_block_node(fir::block_node *const node, int lvl) {
-
+  // TODO talvez vazio
 }
 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_body_node(fir::body_node * const node, int lvl) {
-
+  // TODO talvez vazio
 }
 
 //---------------------------------------------------------------------------
@@ -347,9 +384,7 @@ void fir::type_checker::do_address_of_node(fir::address_of_node * const node, in
 }
 //---------------------------------------------------------------------------
 
-void fir::type_checker::do_index_node(fir::index_node * const node, int lvl) {
 
-}
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_sizeof_node(fir::sizeof_node * const node, int lvl) {
@@ -385,6 +420,3 @@ void fir::type_checker::do_function_call_node(fir::function_call_node * const no
 
 //---------------------------------------------------------------------------
 
-void fir::type_checker::do_identity_node(fir::identity_node * const node, int lvl) {
-
-}
