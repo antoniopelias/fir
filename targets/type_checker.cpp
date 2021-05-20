@@ -59,37 +59,6 @@ void fir::type_checker::do_neg_node(cdk::neg_node *const node, int lvl) {
 }
 
 //---------------------------------------------------------------------------
-/*
-void og::type_checker::do_BooleanLogicalExpression(cdk::binary_operation_node *const node, int lvl) {
-  ASSERT_UNSPEC;
-  node->left()->accept(this, lvl + 2);
-  
-  if(node->left()->is_typed(cdk::TYPE_UNSPEC)) {
-    og::input_node *inputl = dynamic_cast<og::input_node *>(node->left());
-
-    if(inputl != nullptr)
-      node->left()->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-    else
-      throw std::string("Unknown node with unspecified type.");
-  }
-  else if(!node->left()->is_typed(cdk::TYPE_INT))
-    throw std::string("Integer expression expected in (left and right) binary operators.");
-
-  node->right()->accept(this, lvl + 2);
-  if(node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    og::input_node *inputr = dynamic_cast<og::input_node *>(node->right());
-
-    if(inputr != nullptr)
-       node->right()->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-    else
-      throw std::string("Unknown node with unspecified type.");
-  }
-  else if(!node->right()->is_typed(cdk::TYPE_INT))
-    throw std::string("Integer expression expected in (left and right) binary operators.");
-
-   node->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-}
-*/
 
 void fir::type_checker::processBinaryIntegerNode(cdk::expression_node *const node, int lvl){
   node->accept(this, lvl + 2);
@@ -110,58 +79,6 @@ void fir::type_checker::IExpression(cdk::binary_operation_node *const node, int 
   processBinaryIntegerNode(node->right(), lvl);
   node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
-
-/*
-
-void og::type_checker::do_IDExpression(cdk::binary_operation_node *const node, int lvl) {
-  ASSERT_UNSPEC;
-  node->left()->accept(this, lvl + 2);
-  node->right()->accept(this, lvl + 2);
-
-  if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_DOUBLE))
-    node->type(cdk::make_primitive_type(8, cdk::TYPE_DOUBLE));
-  else if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT))
-    node->type(cdk::make_primitive_type(8, cdk::TYPE_DOUBLE));
-  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_DOUBLE))
-    node->type(cdk::make_primitive_type(8, cdk::TYPE_DOUBLE));
-  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT))
-    node->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-  else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    og::input_node *inputl = dynamic_cast<og::input_node*>(node->left());
-    og::input_node *inputr = dynamic_cast<og::input_node*>(node->right());
-
-    if(inputl != nullptr && inputr != nullptr) {
-      node->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-      node->left()->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-      node->right()->type(cdk::make_primitive_type(4, cdk::TYPE_INT));
-    }
-    else
-      throw std::string("Unknown node with unspecified type.");
-  }
-  else if(node->left()->is_typed(cdk::TYPE_UNSPEC)) {
-    og::input_node *inputl = dynamic_cast<og::input_node*>(node->left());
-
-    if(inputl != nullptr) {
-      node->left()->type(node->right()->type());
-      node->type(node->right()->type());
-    }
-    else
-      throw std::string("Unknown node with unspecified type.");
-  }
-  else if(node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    og::input_node *inputr = dynamic_cast<og::input_node*>(node->right());
-
-    if(inputr != nullptr) {
-      node->right()->type(node->left()->type());
-      node->type(node->left()->type());
-    }
-    else
-      throw std::string("Unknown node with unspecified type.");
-  }
-  else
-    throw std::string("Wrong types in binary expression.");
-}
-*/
 
 void fir::type_checker::IDExpression(cdk::binary_operation_node *const node, int lvl){
   ASSERT_UNSPEC;
@@ -208,18 +125,6 @@ void fir::type_checker::PIDExpression(cdk::binary_operation_node *const node, in
   } else {
     throw std::string("wrong types in binary expression");
   }
-}
-
-void fir::type_checker::processBinaryExpression(cdk::binary_operation_node *const node, int lvl) {
-  // ASSERT_UNSPEC;
-  // node->left()->accept(this, lvl + 2);
-  // if (!node->left()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in left argument of binary expression");
-
-  // node->right()->accept(this, lvl + 2);
-  // if (!node->right()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in right argument of binary expression");
-
-  // // in Simple, expressions are always int
-  // node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 void fir::type_checker::do_add_node(cdk::add_node *const node, int lvl) {
@@ -349,10 +254,38 @@ void fir::type_checker::do_while_node(fir::while_node *const node, int lvl) {
 
 void fir::type_checker::do_if_node(fir::if_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+  
+  if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *read = dynamic_cast<fir::read_node *>(node->condition());
+
+    if(read != nullptr) {
+      node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    }
+    else {
+      throw std::string("Unknown node with unspecified type.");
+    }
+
+  }
+  else if (!node->condition()->is_typed(cdk::TYPE_INT)) 
+    throw std::string("Expected integer condition.");
 }
 
 void fir::type_checker::do_if_else_node(fir::if_else_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+  
+  if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *read = dynamic_cast<fir::read_node *>(node->condition());
+
+    if(read != nullptr) {
+      node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    }
+    else {
+      throw std::string("Unknown node with unspecified type.");
+    }
+
+  }
+  else if (!node->condition()->is_typed(cdk::TYPE_INT)) 
+    throw std::string("Expected integer condition.");
 }
 
 //---------------------------------------------------------------------------
@@ -364,13 +297,13 @@ void fir::type_checker::do_return_node(fir::return_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_restart_node(fir::restart_node *const node, int lvl) {
-
+  // Empty
 }
 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_leave_node(fir::leave_node *const node, int lvl) {
-
+  // Empty
 }
 
 //---------------------------------------------------------------------------
@@ -404,7 +337,7 @@ void fir::type_checker::do_variable_declaration_node(fir::variable_declaration_n
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_while_finally_node(fir::while_finally_node * const node, int lvl) {
-
+  node->condition()->accept(this, lvl + 4); 
 }
 
 //---------------------------------------------------------------------------
