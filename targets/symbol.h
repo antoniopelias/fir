@@ -12,9 +12,15 @@ namespace fir {
     std::string _name;
     long _value; // hack!
 
+    bool _function;
+
   public:
     symbol(std::shared_ptr<cdk::basic_type> type, const std::string &name, long value) :
-        _type(type), _name(name), _value(value) {
+        _type(type), _name(name), _value(value), _function(false) {
+    }
+
+    symbol(std::shared_ptr<cdk::basic_type> type, const std::string &name, long value, bool function) :
+        _type(type), _name(name), _value(value), _function(function) {
     }
 
     virtual ~symbol() {
@@ -35,6 +41,9 @@ namespace fir {
     }
     long value(long v) {
       return _value = v;
+    }
+    bool isFunction() const {
+      return _function;
     }
   };
 
