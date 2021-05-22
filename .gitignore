@@ -5,6 +5,10 @@
 *.fir
 *.output
 *.jar
+*.asm
+
+#vscode
+.vscode
 
 # Compiled Object files
 *.slo
