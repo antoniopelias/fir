@@ -1,6 +1,6 @@
 #make clean
 #make
-file=tests/C-01-28-N-ok
+file=tests/B-21-23-N-ok
 echo $file
 ./fir --target asm $file.fir
 yasm -felf32 -o $file.o $file.asm 

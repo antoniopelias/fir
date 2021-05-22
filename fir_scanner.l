@@ -104,6 +104,9 @@ IDENTIFIER   [A-Za-z]([A-Za-z_]|[[:digit:]])*
                               }
 
 [0][0-7]*                   {try { 
+                                  if(std::stoi(yytext, nullptr, 8) == 0 && std::strlen(yytext) > 1){
+                                    yyerror("Error with number 0");
+                                  }
                                   yylval.i = std::stoi(yytext, nullptr, 8);
                                   return tINTEGER;
                                 } catch (std::out_of_range& e) { yyerror("Overflow error."); }
