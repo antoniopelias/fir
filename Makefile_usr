@@ -2,7 +2,7 @@
 #             CONFIGURE THESE VARIABLES IF NEEDED
 #---------------------------------------------------------------
 
-ROOT = ${HOME}/compiladores/root/
+ROOT = .
 CDK_INC_DIR = $(ROOT)/usr/include
 CDK_LIB_DIR = $(ROOT)/usr/lib
 CDK_BIN_DIR = $(ROOT)/usr/bin
@@ -59,10 +59,10 @@ $(Y_NAME).tab.h: $(Y_NAME).y
 $(L_NAME).o: $(L_NAME).cpp $(Y_NAME).tab.h
 
 ast/all.h: 
-	./cdk ast --decls ast --language $(LANGUAGE) > $@
+	././././cdk ast --decls ast --language $(LANGUAGE) > $@
 
 ast/visitor_decls.h: 
-	./cdk ast --decls target --language $(LANGUAGE) > $@
+	././././cdk ast --decls target --language $(LANGUAGE) > $@
 
 $(COMPILER): $(L_NAME).o $(Y_NAME).tab.o $(OFILES)
 	$(CXX) -o $@ $^ $(LDFLAGS)

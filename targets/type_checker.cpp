@@ -1,7 +1,10 @@
 #include <string>
 #include "targets/type_checker.h"
 #include "ast/all.h"  // automatically generated
-#include <cdk/types/primitive_type.h>
+#include <cdk/types/types.h>
+
+// must come after other #includes
+#include "fir_parser.tab.h"
 
 #define ASSERT_UNSPEC { if (node->type() != nullptr && !node->is_typed(cdk::TYPE_UNSPEC)) return; }
 
@@ -383,22 +386,14 @@ void fir::type_checker::do_block_node(fir::block_node *const node, int lvl) {
   // TODO talvez vazio
 }
 
-//---------------------------------------------------------------------------
+void fir::type_checker::do_prologue_node(fir::prologue_node * const node, int lvl) {
+  //EMPTY same as block
+}
 
 void fir::type_checker::do_body_node(fir::body_node * const node, int lvl) {
   // TODO talvez vazio
 }
 
-//---------------------------------------------------------------------------
-
-void fir::type_checker::do_function_declaration_node(fir::function_declaration_node * const node, int lvl) {
-
-}
-//---------------------------------------------------------------------------
-
-void fir::type_checker::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
-
-}
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_variable_declaration_node(fir::variable_declaration_node * const node, int lvl) {
@@ -437,6 +432,14 @@ void fir::type_checker::do_variable_declaration_node(fir::variable_declaration_n
         throw std::string("Wrong type for initializer (pointer expected).");
     }else
       throw std::string("Unknown type for variable initializer.");
+  }
+
+  const std::string &id = node->identifier();
+  auto symbol = fir::make_symbol(node->qualifier(), node->type(), id, (bool)node->initializer(), false);
+  if (_symtab.insert(id, symbol)) {
+    _parent->set_new_symbol(symbol);  // advise parent that a symbol has been inserted
+  } else {
+    throw std::string("variable '" + id + "' redeclared");
   }
 }
 
@@ -481,32 +484,97 @@ void fir::type_checker::do_writeln_node(fir::writeln_node * const node, int lvl)
 
 //---------------------------------------------------------------------------
 
-void fir::type_checker::do_prologue_node(fir::prologue_node * const node, int lvl) {
-  //EMPTY
+void fir::type_checker::do_function_call_node(fir::function_call_node * const node, int lvl) {
+  ASSERT_UNSPEC;
+
+  const std::string &id = node->identifier();
+  auto symbol = _symtab.find(id);
+  if (symbol == nullptr) throw std::string("symbol '" + id + "' is undeclared.");
+  if (!symbol->isFunction()) throw std::string("symbol '" + id + "' is not a function.");
+
+  node->type(symbol->type());
+
+  if (node->arguments()->size() == symbol->number_of_arguments()) {
+    node->arguments()->accept(this, lvl + 4);
+    for (size_t ax = 0; ax < node->arguments()->size(); ax++) {
+      if (node->argument(ax)->type() == symbol->argument_type(ax)) continue;
+      if (symbol->argument_is_typed(ax, cdk::TYPE_DOUBLE) && node->argument(ax)->is_typed(cdk::TYPE_INT)) continue;
+      throw std::string("type mismatch for argument " + std::to_string(ax + 1) + " of '" + id + "'.");
+    }
+  } else {
+    throw std::string(
+        "number of arguments in call (" + std::to_string(node->arguments()->size()) + ") must match declaration ("
+            + std::to_string(symbol->number_of_arguments()) + ").");
+  }
 }
 
 //---------------------------------------------------------------------------
 
-void fir::type_checker::do_function_call_node(fir::function_call_node * const node, int lvl) {
-  ASSERT_UNSPEC;
+void fir::type_checker::do_function_declaration_node(fir::function_declaration_node * const node, int lvl) {
+  std::string id;
 
-  // const std::string &id = node->identifier();
-  // auto symbol = _symtab.find(id);
-  // if (symbol == nullptr) throw std::string("symbol '" + id + "' is undeclared.");
-  // if (!symbol->isFunction()) throw std::string("symbol '" + id + "' is not a function.");
+  // "fix" naming issues...
+  if (node->identifier() == "fir")
+    id = "_main";
+  else if (node->identifier() == "_main")
+    id = "._main";
+  else
+    id = node->identifier();
 
-  // node->type(symbol->type());
+  // remember symbol so that args know
+  auto function = fir::make_symbol(node->qualifier(), node->type(), id, false, true, true);
 
-  // if (node->arguments()->size() == symbol->number_of_arguments()) {
-  //   node->arguments()->accept(this, lvl + 4);
-  //   for (size_t ax = 0; ax < node->arguments()->size(); ax++) {
-  //     if (node->argument(ax)->type() == symbol->argument_type(ax)) continue;
-  //     if (symbol->argument_is_typed(ax, cdk::TYPE_DOUBLE) && node->argument(ax)->is_typed(cdk::TYPE_INT)) continue;
-  //     throw std::string("type mismatch for argument " + std::to_string(ax + 1) + " of '" + id + "'.");
-  //   }
-  // } else {
-  //   throw std::string(
-  //       "number of arguments in call (" + std::to_string(node->arguments()->size()) + ") must match declaration ("
-  //           + std::to_string(symbol->number_of_arguments()) + ").");
-  // }
+  std::vector < std::shared_ptr < cdk::basic_type >> argtypes;
+  for (size_t ax = 0; ax < node->arguments()->size(); ax++)
+    argtypes.push_back(node->argument(ax)->type());
+  function->set_argument_types(argtypes);
+
+  std::shared_ptr<fir::symbol> previous = _symtab.find(function->name());
+  if (previous) {
+    // TODO verificar argumentos, conflitos possiveis
+    throw std::string("conflicting declaration for '" + function->name() + "'");
+  } else {
+    _symtab.insert(function->name(), function);
+    _parent->set_new_symbol(function);
+  }
+}
+
+//---------------------------------------------------------------------------
+
+void fir::type_checker::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
+  std::string id;
+
+  // "fix" naming issues...
+  if (node->identifier() == "fir")
+    id = "_main";
+  else if (node->identifier() == "_main")
+    id = "._main";
+  else
+    id = node->identifier();
+
+  // _inBlockReturnType = nullptr;
+
+  // remember symbol so that args know
+  auto function = fir::make_symbol(node->qualifier(), node->type(), id, false, true);
+
+  std::vector < std::shared_ptr < cdk::basic_type >> argtypes;
+  for (size_t ax = 0; ax < node->arguments()->size(); ax++)
+    argtypes.push_back(node->argument(ax)->type());
+  function->set_argument_types(argtypes);
+
+  // TODO talvez falte verificacao de argumentos iguais a declaracao
+  std::shared_ptr<fir::symbol> previous = _symtab.find(function->name());
+  if (previous) {
+    if (previous->forward()
+        && ((previous->qualifier() == tPUBLIC && node->qualifier() == tPUBLIC)
+            || (previous->qualifier() == tPRIVATE && node->qualifier() == tPRIVATE))) {
+      _symtab.replace(function->name(), function);
+      _parent->set_new_symbol(function);
+    } else {
+      throw std::string("Conflicting definition for '" + function->name() + "'");
+    }
+  } else {
+    _symtab.insert(function->name(), function);
+    _parent->set_new_symbol(function);
+  }
 }
