@@ -15,7 +15,11 @@ void fir::postfix_writer::do_data_node(cdk::data_node * const node, int lvl) {
   // EMPTY
 }
 void fir::postfix_writer::do_double_node(cdk::double_node * const node, int lvl) {
-  // EMPTY
+  if (_inFunctionBody) {
+    _pf.DOUBLE(node->value()); // load number to the stack
+  } else {
+    _pf.SDOUBLE(node->value());    // double is on the DATA segment
+  }
 }
 void fir::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
   // EMPTY
@@ -38,7 +42,11 @@ void fir::postfix_writer::do_sequence_node(cdk::sequence_node * const node, int 
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_integer_node(cdk::integer_node * const node, int lvl) {
-  _pf.INT(node->value()); // push an integer
+  if (_inFunctionBody) {
+    _pf.INT(node->value()); // integer literal is on the stack: push an integer
+  } else {
+    _pf.SINT(node->value()); // integer literal is on the DATA segment
+  }
 }
 
 void fir::postfix_writer::do_string_node(cdk::string_node * const node, int lvl) {
@@ -50,9 +58,15 @@ void fir::postfix_writer::do_string_node(cdk::string_node * const node, int lvl)
   _pf.LABEL(mklbl(lbl1 = ++_lbl)); // give the string a name
   _pf.SSTRING(node->value()); // output string characters
 
-  /* leave the address on the stack */
-  _pf.TEXT(); // return to the TEXT segment
-  _pf.ADDR(mklbl(lbl1)); // the string to be printed
+  if (_function) {
+    // local variable initializer
+    _pf.TEXT();
+    _pf.ADDR(mklbl(lbl1));
+  } else {
+    // global variable initializer
+    _pf.DATA();
+    _pf.SADDR(mklbl(lbl1));
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -554,7 +568,30 @@ void fir::postfix_writer::do_prologue_node(fir::prologue_node * const node, int 
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_function_call_node(fir::function_call_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+  auto symbol = _symtab.find(node->identifier());
 
+  size_t argsSize = 0;
+  if (node->arguments()->size() > 0) {
+    for (int ax = node->arguments()->size() - 1; ax >= 0; ax--) {
+      cdk::expression_node *arg = dynamic_cast<cdk::expression_node*>(node->arguments()->node(ax));
+      arg->accept(this, lvl + 2);
+      if (symbol->argument_is_typed(ax, cdk::TYPE_DOUBLE) && arg->is_typed(cdk::TYPE_INT)) {
+        _pf.I2D();
+      }
+      argsSize += symbol->argument_size(ax);
+    }
+  }
+  _pf.CALL(node->identifier());
+  if (argsSize != 0) {
+    _pf.TRASH(argsSize);
+  }
+
+  if (symbol->is_typed(cdk::TYPE_INT) || symbol->is_typed(cdk::TYPE_POINTER) || symbol->is_typed(cdk::TYPE_STRING)) {
+    _pf.LDFVAL32();
+  } else if (symbol->is_typed(cdk::TYPE_DOUBLE)) {
+    _pf.LDFVAL64();
+  } 
 }
 
 //---------------------------------------------------------------------------
