@@ -187,17 +187,19 @@ void fir::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 
 void fir::postfix_writer::do_evaluation_node(fir::evaluation_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->argument()->accept(this, lvl); // determine the value
-  if (node->argument()->is_typed(cdk::TYPE_INT)) {
-    _pf.TRASH(4); // delete the evaluated value
-  } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
-    _pf.TRASH(4); // delete the evaluated value's address
-  } else if (node->argument()->is_typed(cdk::TYPE_DOUBLE)) {
-    _pf.TRASH(8); // delete the evaluated value's address
-  }  else {
-    std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
-    exit(1);
-  }
+  node->argument()->accept(this, lvl);
+  _pf.TRASH(node->argument()->type()->size());
+  // node->argument()->accept(this, lvl); // determine the value
+  // if (node->argument()->is_typed(cdk::TYPE_INT)) {
+  //   _pf.TRASH(4); // delete the evaluated value
+  // } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
+  //   _pf.TRASH(4); // delete the evaluated value's address
+  // } else if (node->argument()->is_typed(cdk::TYPE_DOUBLE)) {
+  //   _pf.TRASH(8); // delete the evaluated value's address
+  // }  else {
+  //   std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
+  //   exit(1);
+  // }
 }
 
 //---------------------------------------------------------------------------
@@ -610,16 +612,12 @@ void fir::postfix_writer::do_prologue_node(fir::prologue_node * const node, int 
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_function_call_node(fir::function_call_node * const node, int lvl) {
-  std::cout << "A1" << std::endl << std::flush;
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "A2" << std::endl;
 
   auto symbol = _symtab.find(node->identifier());
-  std::cout << "A3" << std::endl;
 
   size_t argsSize = 0;
   if (node->arguments() && node->arguments()->size() > 0) {
-  std::cout << "A4" << std::endl;
 
     for (int ax = node->arguments()->size() - 1; ax >= 0; ax--) {
       cdk::expression_node *arg = dynamic_cast<cdk::expression_node*>(node->arguments()->node(ax));
@@ -629,23 +627,19 @@ void fir::postfix_writer::do_function_call_node(fir::function_call_node * const 
       }
       argsSize += symbol->argument_size(ax);
     }
-  std::cout << "A5" << std::endl;
 
   }
   _pf.CALL(node->identifier());
   if (argsSize != 0) {
     _pf.TRASH(argsSize);
   }
-  std::cout << "A6" << std::endl;
 
 
   if (symbol->is_typed(cdk::TYPE_INT) || symbol->is_typed(cdk::TYPE_POINTER) || symbol->is_typed(cdk::TYPE_STRING)) {
     _pf.LDFVAL32();
-  std::cout << "A7" << std::endl;
 
   } else if (symbol->is_typed(cdk::TYPE_DOUBLE)) {
     _pf.LDFVAL64();
-  std::cout << "A8" << std::endl;
 
   } 
 }

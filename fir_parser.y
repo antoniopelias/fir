@@ -165,7 +165,7 @@ expr : tINTEGER                                                            { $$ 
 
 
 funcCall: tIDENTIFIER'(' expressions ')'                                   { $$ = new fir::function_call_node(LINE, *$1, $3); delete $1; }
-        | tIDENTIFIER'(' ')'                                               { $$ = new fir::function_call_node(LINE, *$1, nullptr); delete $1; }
+        | tIDENTIFIER'(' ')'                                               { $$ = new fir::function_call_node(LINE, *$1); delete $1; }
         ;
 
 data_type : tTYPE_INT                                                      { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT);}
