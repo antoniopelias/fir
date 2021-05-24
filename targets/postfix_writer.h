@@ -20,6 +20,7 @@ namespace fir {
     // semantic analysis
     bool _errors, _inFunction, _inFunctionName, _inFunctionArgs, _inFunctionBody;
     bool _returnSeen; // when building a function
+    std::stack<int> _whileCond, _whileEnd;
     std::stack<bool> _globals; // for deciding whether a variable is global or not
     std::shared_ptr<fir::symbol> _function; // for keeping track of the current function and its arguments
     int _offset; // current framepointer offset (0 means no vars defined)

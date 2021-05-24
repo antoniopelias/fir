@@ -21,7 +21,7 @@ do
     yasm -felf32 -o ${name}.o ${name}.asm 
     ld -m elf_i386 -o ${name} ${name}.o -L$HOME/compiladores/root/usr/lib -lrts
     ./${name} > tests/expected/${singlename}.myout
-    diff tests/expected/${singlename}.myout tests/expected/${singlename}.out
+    diff -w tests/expected/${singlename}.myout tests/expected/${singlename}.out
     rm ${name}.asm ${name}.o ${name} tests/expected/${singlename}.myout
 done
 

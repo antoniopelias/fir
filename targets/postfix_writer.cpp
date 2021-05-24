@@ -192,7 +192,9 @@ void fir::postfix_writer::do_evaluation_node(fir::evaluation_node * const node, 
     _pf.TRASH(4); // delete the evaluated value
   } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
     _pf.TRASH(4); // delete the evaluated value's address
-  } else {
+  } else if (node->argument()->is_typed(cdk::TYPE_DOUBLE)) {
+    _pf.TRASH(8); // delete the evaluated value's address
+  }  else {
     std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
     exit(1);
   }
@@ -213,13 +215,64 @@ void fir::postfix_writer::do_read_node(fir::read_node * const node, int lvl) {
 
 void fir::postfix_writer::do_while_node(fir::while_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  int lbl1, lbl2;
-  _pf.LABEL(mklbl(lbl1 = ++_lbl));
+
+  _whileCond.push(++_lbl);
+  _whileEnd.push(++_lbl);
+
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(_whileCond.top()));
   node->condition()->accept(this, lvl);
-  _pf.JZ(mklbl(lbl2 = ++_lbl));
+  _pf.JZ(mklbl(_whileEnd.top()));
+
+  
   node->block()->accept(this, lvl + 2);
-  _pf.JMP(mklbl(lbl1));
-  _pf.LABEL(mklbl(lbl2));
+  _pf.JMP(mklbl(_whileCond.top()));
+  
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(_whileEnd.top()));
+  
+  _whileEnd.pop();
+  _whileCond.pop();
+}
+
+//---------------------------------------------------------------------------
+
+void fir::postfix_writer::do_restart_node(fir::restart_node * const node, int lvl) {
+  int restarts = node -> literal() -> value();
+  std::stack<int> cond = _whileCond;
+  if (cond.size() != 0) {
+    if (restarts >= 1) {
+      while(restarts > 1){
+          cond.pop();
+          restarts--;
+        }
+        _pf.JMP(mklbl(cond.top()));
+    }
+    else {
+      std::cerr << node->lineno() << ( "wrong argument in restart") << std::endl;
+    }
+  } else
+   std::cerr << node->lineno() << ( "'restart' outside 'while'") << std::endl;
+}
+
+//---------------------------------------------------------------------------
+
+void fir::postfix_writer::do_leave_node(fir::leave_node * const node, int lvl) {
+  int leaves = node -> literal() -> value();
+  std::stack<int> end = _whileEnd;
+  if (end.size() != 0) {
+    if (leaves >= 1) {
+      while(leaves > 1){
+          end.pop();
+          leaves--;
+        }
+        _pf.JMP(mklbl(end.top()));
+    }
+    else {
+      std::cerr << node->lineno() << ( "wrong argument in leave") << std::endl;
+    }
+  } else
+   std::cerr << node->lineno() << ( "'leave' outside 'while'") << std::endl;
 }
 
 //---------------------------------------------------------------------------
@@ -250,18 +303,6 @@ void fir::postfix_writer::do_if_else_node(fir::if_else_node * const node, int lv
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_return_node(fir::return_node * const node, int lvl) {
-
-}
-
-//---------------------------------------------------------------------------
-
-void fir::postfix_writer::do_restart_node(fir::restart_node * const node, int lvl) {
-
-}
-
-//---------------------------------------------------------------------------
-
-void fir::postfix_writer::do_leave_node(fir::leave_node * const node, int lvl) {
 
 }
 
@@ -298,6 +339,7 @@ void fir::postfix_writer::do_function_declaration_node(fir::function_declaration
 
 void fir::postfix_writer::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+
   // if (_inFunctionBody || _inFunctionArgs) {
   //   error(node->lineno(), "cannot define function in body or in arguments");
   //   return;
@@ -434,7 +476,7 @@ void fir::postfix_writer::do_variable_declaration_node(fir::variable_declaration
               cdk::double_node ddi(dclini->lineno(), dclini->value());
               ddi.accept(this, lvl);
             } else {
-              std::cerr << node->lineno() << ": '" << id << "' has bad initializer for real value\n";
+              std::cerr << node->lineno() << ": '" << id << "' has bad initializer for real value" << std::endl;
               _errors = true;
             }
           }
@@ -456,7 +498,7 @@ void fir::postfix_writer::do_variable_declaration_node(fir::variable_declaration
             node->initializer()->accept(this, lvl);
           }
         } else {
-          std::cerr << node->lineno() << ": '" << id << "' has unexpected initializer\n";
+          std::cerr << node->lineno() << ": '" << id << "' has unexpected initializer" << std::endl;
           _errors = true;
         }
 
@@ -568,11 +610,17 @@ void fir::postfix_writer::do_prologue_node(fir::prologue_node * const node, int 
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_function_call_node(fir::function_call_node * const node, int lvl) {
+  std::cout << "A1" << std::endl << std::flush;
   ASSERT_SAFE_EXPRESSIONS;
+  std::cout << "A2" << std::endl;
+
   auto symbol = _symtab.find(node->identifier());
+  std::cout << "A3" << std::endl;
 
   size_t argsSize = 0;
-  if (node->arguments()->size() > 0) {
+  if (node->arguments() && node->arguments()->size() > 0) {
+  std::cout << "A4" << std::endl;
+
     for (int ax = node->arguments()->size() - 1; ax >= 0; ax--) {
       cdk::expression_node *arg = dynamic_cast<cdk::expression_node*>(node->arguments()->node(ax));
       arg->accept(this, lvl + 2);
@@ -581,16 +629,24 @@ void fir::postfix_writer::do_function_call_node(fir::function_call_node * const 
       }
       argsSize += symbol->argument_size(ax);
     }
+  std::cout << "A5" << std::endl;
+
   }
   _pf.CALL(node->identifier());
   if (argsSize != 0) {
     _pf.TRASH(argsSize);
   }
+  std::cout << "A6" << std::endl;
+
 
   if (symbol->is_typed(cdk::TYPE_INT) || symbol->is_typed(cdk::TYPE_POINTER) || symbol->is_typed(cdk::TYPE_STRING)) {
     _pf.LDFVAL32();
+  std::cout << "A7" << std::endl;
+
   } else if (symbol->is_typed(cdk::TYPE_DOUBLE)) {
     _pf.LDFVAL64();
+  std::cout << "A8" << std::endl;
+
   } 
 }
 
