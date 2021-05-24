@@ -16,8 +16,10 @@ do
     ./${name} > tests/expected/${singlename}.myout
     tr -d '\n' < tests/expected/${singlename}.myout > tests/expected/${singlename}.nonlout
     echo >> tests/expected/${singlename}.nonlout
+    cat tests/expected/${singlename}.myout
     diff tests/expected/${singlename}.nonlout tests/expected/${singlename}.out
-    rm ${name}.asm ${name}.o ${name} tests/expected/${singlename}.myout tests/expected/${singlename}.nonlout
+    rm tests/expected/${singlename}.myout
+    rm ${name}.asm ${name}.o ${name} tests/expected/${singlename}.nonlout
     echo
 done
 

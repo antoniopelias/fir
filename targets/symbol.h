@@ -43,6 +43,9 @@ namespace fir {
     void set_offset(int offset) {
       _offset = offset;
     }
+    bool global() const {
+      return _offset == 0;
+    }
 
     // --- Function related 
 

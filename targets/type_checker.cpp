@@ -383,15 +383,15 @@ void fir::type_checker::do_leave_node(fir::leave_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_block_node(fir::block_node *const node, int lvl) {
-  // TODO talvez vazio
+  //EMPTY
 }
 
 void fir::type_checker::do_prologue_node(fir::prologue_node * const node, int lvl) {
-  //EMPTY same as block
+  //EMPTY
 }
 
 void fir::type_checker::do_body_node(fir::body_node * const node, int lvl) {
-  // TODO talvez vazio
+  //EMPTY
 }
 
 //---------------------------------------------------------------------------
@@ -577,4 +577,5 @@ void fir::type_checker::do_function_definition_node(fir::function_definition_nod
     _symtab.insert(function->name(), function);
     _parent->set_new_symbol(function);
   }
+  //TODO verificar def ret val
 }

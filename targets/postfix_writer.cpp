@@ -151,7 +151,15 @@ void fir::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
 void fir::postfix_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   // TODO simplified generation: all variables are global
-  _pf.ADDR(node->name());
+  // _pf.ADDR(node->name());
+  std::string id = node-> name();
+  auto symbol = _symtab.find(id);
+  if (symbol->global()) {
+    _pf.ADDR(symbol->name());
+  } else {
+    _pf.LOCAL(symbol->offset());
+    //std::cerr << "LVAL " << symbol->name() << ":" << symbol->type()->size() << ":" << symbol->offset() << std::endl;
+  }
 }
 
 void fir::postfix_writer::do_rvalue_node(cdk::rvalue_node * const node, int lvl) {
@@ -251,10 +259,10 @@ void fir::postfix_writer::do_restart_node(fir::restart_node * const node, int lv
         _pf.JMP(mklbl(cond.top()));
     }
     else {
-      std::cerr << node->lineno() << ( "wrong argument in restart") << std::endl;
+      error(node->lineno(), "wrong argument in restart");
     }
   } else
-   std::cerr << node->lineno() << ( "'restart' outside 'while'") << std::endl;
+    error(node->lineno(),  "'restart' outside 'while'");
 }
 
 //---------------------------------------------------------------------------
@@ -271,10 +279,10 @@ void fir::postfix_writer::do_leave_node(fir::leave_node * const node, int lvl) {
         _pf.JMP(mklbl(end.top()));
     }
     else {
-      std::cerr << node->lineno() << ( "wrong argument in leave") << std::endl;
+      error(node ->lineno(), "wrong argument in leave");
     }
   } else
-   std::cerr << node->lineno() << ( "'leave' outside 'while'") << std::endl;
+      error(node ->lineno(), "'leave' outside 'while'");
 }
 
 //---------------------------------------------------------------------------
@@ -342,10 +350,10 @@ void fir::postfix_writer::do_function_declaration_node(fir::function_declaration
 void fir::postfix_writer::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
 
-  // if (_inFunctionBody || _inFunctionArgs) {
-  //   error(node->lineno(), "cannot define function in body or in arguments");
-  //   return;
-  // }
+  if (_inFunctionBody || _inFunctionArgs) {
+    error(node->lineno(), "cannot define function in body or in arguments");
+    return;
+  }
 
   _function = new_symbol();
   _functions_to_declare.erase(_function->name());  // just in case
@@ -380,6 +388,7 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
 
   // the following flag is a slight hack: it won't work with nested functions
   _inFunctionBody = true;
+  // TODO  falta def ret val
   os() << "        ;; before body " << std::endl;
   node -> body() -> accept(this, lvl + 4);
   os() << "        ;; after body " << std::endl;
