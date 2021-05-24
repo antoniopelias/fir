@@ -388,7 +388,34 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
 
   // the following flag is a slight hack: it won't work with nested functions
   _inFunctionBody = true;
-  // TODO  falta def ret val
+  
+  auto id = _function->name();
+  int offset = 0, typesize = node->type()->size(); // in bytes
+  _offset -= typesize;
+  offset = _offset;
+
+  auto symbol = new_symbol();
+
+  if (symbol) {
+    symbol->set_offset(offset);
+    reset_new_symbol();
+  }
+
+  if (node->def_retval()) {
+    node->def_retval()->accept(this, lvl);
+    if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER)) {
+      _pf.LOCAL(symbol->offset());
+      _pf.STINT();
+    } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
+      if (node->def_retval()->is_typed(cdk::TYPE_INT))
+        _pf.I2D();
+      _pf.LOCAL(symbol->offset());
+      _pf.STDOUBLE();
+    } else {
+      std::cerr << "cannot initialize" << std::endl;
+    }
+  }
+
   os() << "        ;; before body " << std::endl;
   node -> body() -> accept(this, lvl + 4);
   os() << "        ;; after body " << std::endl;
