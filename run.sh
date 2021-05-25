@@ -4,32 +4,25 @@ if [ $2 = ${ma} ]
         make clean
 fi
 make
-clear
-for firname in tests/$1*.fir
+for full in tests/$1*.fir
 do
-    echo ${firname}
-    name=$(echo "$firname" | cut -f 1 -d '.')
-    singlename=$(echo "$name" | cut -f 2 -d '/')
-    ./fir --target asm ${name}.fir
-    yasm -felf32 -o ${name}.o ${name}.asm 
-    ld -m elf_i386 -o ${name} ${name}.o -L$HOME/compiladores/root/usr/lib -lrts
-    ./${name} > tests/expected/${singlename}.myout
+    echo ${full}
+    pathname=$(echo "$full" | cut -f 1 -d '.')
+    exec=$(echo "$pathname" | cut -f 2 -d '/')
+    ./fir --target asm ${pathname}.fir
+    yasm -felf32 -o ${pathname}.o ${pathname}.asm 
+    ld -m elf_i386 -o ${pathname} ${pathname}.o -L$HOME/compiladores/root/usr/lib -lrts
+    ./${pathname} > tests/expected/${exec}.myout
 
-    #prepare output to compare
-    tr -d '\n' < tests/expected/${singlename}.myout > tests/expected/${singlename}.nonlout
-    echo >> tests/expected/${singlename}.nonlout
 
-    echo
     #show my output
-    cat tests/expected/${singlename}.myout
+    #cat tests/expected/${exec}.myout 
 
-    #compare outputs
-    diff tests/expected/${singlename}.nonlout tests/expected/${singlename}.out
-    
+    #compare outputs    
+    diff tests/expected/${exec}.myout tests/abad_expected/out/${exec}.out
+
     #clean-up
-    rm tests/expected/${singlename}.myout
-    rm ${name}.asm ${name}.o ${name} tests/expected/${singlename}.nonlout
-    echo
+    rm ${pathname}.asm ${pathname}.o ${pathname} tests/expected/${exec}.myout
 done
 
 

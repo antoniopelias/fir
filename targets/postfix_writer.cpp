@@ -613,7 +613,6 @@ void fir::postfix_writer::do_address_of_node(fir::address_of_node * const node, 
 // TODO verificar isto - diferenciar doubles de nao doubles
 void fir::postfix_writer::do_index_node(fir::index_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "AAAAAAAAA2" << std::endl << std::flush;
   if (node->base()) {
     node->base()->accept(this, lvl);
   } else {
@@ -623,10 +622,8 @@ void fir::postfix_writer::do_index_node(fir::index_node * const node, int lvl) {
       std::cerr << "FATAL: " << node->lineno() << ": trying to use return value outside function" << std::endl;
     }
   }
-    std::cout << "AAAAAAAAA3" << std::endl << std::flush;
 
   node->index()->accept(this, lvl);
-    std::cout << "AAAAAAAAA4" << std::endl << std::flush;
 
   _pf.INT(3);
   _pf.SHTL();
