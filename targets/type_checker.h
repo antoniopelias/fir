@@ -10,12 +10,12 @@ namespace fir {
    */
   class type_checker: public basic_ast_visitor {
     cdk::symbol_table<fir::symbol> &_symtab;
-
+    std::shared_ptr<fir::symbol> _function;
     basic_ast_visitor *_parent;
 
   public:
-    type_checker(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<fir::symbol> &symtab, basic_ast_visitor *parent) :
-        basic_ast_visitor(compiler), _symtab(symtab), _parent(parent) {
+    type_checker(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<fir::symbol> &symtab, std::shared_ptr<fir::symbol> function,basic_ast_visitor *parent) :
+        basic_ast_visitor(compiler), _symtab(symtab), _function(function), _parent(parent) {
     }
 
   public:
@@ -48,9 +48,9 @@ namespace fir {
 //     HELPER MACRO FOR TYPE CHECKING
 //---------------------------------------------------------------------------
 
-#define CHECK_TYPES(compiler, symtab, node) { \
+#define CHECK_TYPES(compiler, symtab, function, node) { \
   try { \
-    fir::type_checker checker(compiler, symtab, this); \
+    fir::type_checker checker(compiler, symtab, function, this); \
     (node)->accept(&checker, 0); \
   } \
   catch (const std::string &problem) { \
@@ -59,6 +59,6 @@ namespace fir {
   } \
 }
 
-#define ASSERT_SAFE_EXPRESSIONS CHECK_TYPES(_compiler, _symtab, node)
+#define ASSERT_SAFE_EXPRESSIONS CHECK_TYPES(_compiler, _symtab, _function, node)
 
 #endif

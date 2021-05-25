@@ -80,7 +80,22 @@ void fir::type_checker::do_identity_node(fir::identity_node * const node, int lv
 }
 
 void fir::type_checker::do_index_node(fir::index_node * const node, int lvl) {
-  // TODO 
+  ASSERT_UNSPEC;
+  std::shared_ptr < cdk::reference_type > btype;
+
+  if (node->base()) {
+    node->base()->accept(this, lvl + 2);
+    btype = cdk::reference_type::cast(node->base()->type());
+    if (!node->base()->is_typed(cdk::TYPE_POINTER)) throw std::string("pointer expression expected in index left-value");
+  } else {
+    btype = cdk::reference_type::cast(_function->type());
+    if (!_function->is_typed(cdk::TYPE_POINTER)) throw std::string("return pointer expression expected in index left-value");
+  }
+
+  node->index()->accept(this, lvl + 2);
+  if (!node->index()->is_typed(cdk::TYPE_INT)) throw std::string("integer expression expected in left-value index");
+
+  node->type(btype->referenced());
 }
 
 void fir::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
@@ -520,6 +535,9 @@ void fir::type_checker::do_function_declaration_node(fir::function_declaration_n
     id = "._main";
   else
     id = node->identifier();
+
+  // TODO verificar se e externa e falhar se for
+  // TODO verificar se e void e tem def ret val
 
   // remember symbol so that args know
   auto function = fir::make_symbol(node->qualifier(), node->type(), id, false, true, true);

@@ -14,10 +14,19 @@ do
     yasm -felf32 -o ${name}.o ${name}.asm 
     ld -m elf_i386 -o ${name} ${name}.o -L$HOME/compiladores/root/usr/lib -lrts
     ./${name} > tests/expected/${singlename}.myout
+
+    #prepare output to compare
     tr -d '\n' < tests/expected/${singlename}.myout > tests/expected/${singlename}.nonlout
     echo >> tests/expected/${singlename}.nonlout
-    cat tests/expected/${singlename}.myout
+
+    echo
+    #show my output
+    #cat tests/expected/${singlename}.myout
+
+    #compare outputs
     diff tests/expected/${singlename}.nonlout tests/expected/${singlename}.out
+    
+    #clean-up
     rm tests/expected/${singlename}.myout
     rm ${name}.asm ${name}.o ${name} tests/expected/${singlename}.nonlout
     echo

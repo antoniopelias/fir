@@ -178,7 +178,7 @@ void fir::frame_size_calculator::do_function_declaration_node(fir::function_decl
 //---------------------------------------------------------------------------
 
 void fir::frame_size_calculator::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
-    // _localsize += node->type()->size(); // save space for the function's return type
+    _localsize += node->type()->size(); // save space for the function's return type
     node->body()->accept(this, lvl + 2);
 }
 

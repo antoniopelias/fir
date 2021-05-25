@@ -311,7 +311,7 @@ void fir::postfix_writer::do_if_else_node(fir::if_else_node * const node, int lv
 }
 
 //---------------------------------------------------------------------------
-
+//  TODO 
 void fir::postfix_writer::do_return_node(fir::return_node * const node, int lvl) {
 
 }
@@ -341,7 +341,16 @@ void fir::postfix_writer::do_body_node(fir::body_node * const node, int lvl) {
 
 void fir::postfix_writer::do_function_declaration_node(fir::function_declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+  if (_inFunctionBody || _inFunctionArgs) {
+    error(node->lineno(), "cannot declare function in body or in args");
+    return;
+  }
 
+  if (!new_symbol()) return;
+
+  auto function = new_symbol();
+  _functions_to_declare.insert(function->name());
+  reset_new_symbol();
 
 }
 
@@ -356,6 +365,7 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   }
 
   _function = new_symbol();
+  _function -> set_offset(0);
   _functions_to_declare.erase(_function->name());  // just in case
   reset_new_symbol();
 
@@ -384,35 +394,23 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   node->accept(&lsc, lvl);
   _pf.ENTER(lsc.localsize()); // total stack size reserved for local variables
 
-  _offset = 0; // prepare for local variable
+  _offset = -node->type()->size(); // prepare for local variable
 
   // the following flag is a slight hack: it won't work with nested functions
   _inFunctionBody = true;
   
-  auto id = _function->name();
-  int offset = 0, typesize = node->type()->size(); // in bytes
-  _offset -= typesize;
-  offset = _offset;
-
-  auto symbol = new_symbol();
-
-  if (symbol) {
-    symbol->set_offset(offset);
-    reset_new_symbol();
-  }
-
   if (node->def_retval()) {
     node->def_retval()->accept(this, lvl);
     if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER)) {
-      _pf.LOCAL(symbol->offset());
+      _pf.LOCAL(_offset);
       _pf.STINT();
     } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
       if (node->def_retval()->is_typed(cdk::TYPE_INT))
         _pf.I2D();
-      _pf.LOCAL(symbol->offset());
+      _pf.LOCAL(_offset);
       _pf.STDOUBLE();
     } else {
-      std::cerr << "cannot initialize" << std::endl;
+      error(node->lineno(), "cannot initialize default return value");
     }
   }
 
@@ -422,6 +420,22 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   _inFunctionBody = false;
   _returnSeen = false;
 
+  if(!node->is_typed(cdk::TYPE_VOID)){
+    std::cout << "NO VOID: " << std::endl;
+    if(!node->is_typed(cdk::TYPE_DOUBLE)){
+      std::cout << "INT " <<std::endl;
+      _pf.LOCAL(-node->type()->size());
+      _pf.LDINT();
+      _pf.STFVAL32();
+    }
+    else{
+      _pf.LOCAL(-node->type()->size());
+      _pf.LDDOUBLE();
+      _pf.STFVAL64();
+    }
+  }
+
+  _pf.ALIGN();
   _pf.LABEL(_currentBodyRetLabel);
   _pf.LEAVE();
   _pf.RET();
@@ -550,33 +564,88 @@ void fir::postfix_writer::do_variable_declaration_node(fir::variable_declaration
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_while_finally_node(fir::while_finally_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+
+  _whileCond.push(++_lbl);
+  _whileEnd.push(++_lbl);
+
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(_whileCond.top()));
+  node->condition()->accept(this, lvl);
+  _pf.JZ(mklbl(_whileEnd.top()));
+
+  
+  node->theninstr()->accept(this, lvl + 2);
+  _pf.JMP(mklbl(_whileCond.top()));
+  
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(_whileEnd.top()));
+  
+  _whileEnd.pop();
+  _whileCond.pop();
+
+  node->finallyinstr()->accept(this, lvl + 2);
 
 }
 
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_null_node(fir::null_node * const node, int lvl) {
-
+  ASSERT_SAFE_EXPRESSIONS;
+  if (_inFunctionBody) {
+    _pf.INT(0);
+  } else {
+    _pf.SINT(0);
+  }
 }
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_address_of_node(fir::address_of_node * const node, int lvl) {
-
+  ASSERT_SAFE_EXPRESSIONS
+  node->lvalue()->accept(this, lvl);
 }
-//---------------------------------------------------------------------------
 
+//---------------------------------------------------------------------------
+// TODO verificar isto - diferenciar doubles de nao doubles
 void fir::postfix_writer::do_index_node(fir::index_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+  std::cout << "AAAAAAAAA2" << std::endl << std::flush;
+  if (node->base()) {
+    node->base()->accept(this, lvl);
+  } else {
+    if (_function) {
+      _pf.LOCV(-_function->type()->size());
+    } else {
+      std::cerr << "FATAL: " << node->lineno() << ": trying to use return value outside function" << std::endl;
+    }
+  }
+    std::cout << "AAAAAAAAA3" << std::endl << std::flush;
+
+  node->index()->accept(this, lvl);
+    std::cout << "AAAAAAAAA4" << std::endl << std::flush;
+
+  _pf.INT(3);
+  _pf.SHTL();
+  _pf.ADD(); // add pointer and index
 
 }
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_sizeof_node(fir::sizeof_node * const node, int lvl) {
-
+  ASSERT_SAFE_EXPRESSIONS;
+  _pf.INT(node->expression()->type()->size());
 }
+
 //---------------------------------------------------------------------------
-
+// TODO verificar isto - diferenciar doubles de nao doubles
 void fir::postfix_writer::do_stack_alloc_node(fir::stack_alloc_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+  node->argument()->accept(this, lvl);
+  _pf.INT(3);
 
+  _pf.SHTL();
+  _pf.ALLOC();    
+  _pf.SP();
 }
 
 //---------------------------------------------------------------------------
@@ -640,7 +709,7 @@ void fir::postfix_writer::do_writeln_node(fir::writeln_node * const node, int lv
 }
 
 //---------------------------------------------------------------------------
-
+// TODO
 void fir::postfix_writer::do_prologue_node(fir::prologue_node * const node, int lvl) {
 
 }
@@ -670,7 +739,6 @@ void fir::postfix_writer::do_function_call_node(fir::function_call_node * const 
     _pf.TRASH(argsSize);
   }
 
-
   if (symbol->is_typed(cdk::TYPE_INT) || symbol->is_typed(cdk::TYPE_POINTER) || symbol->is_typed(cdk::TYPE_STRING)) {
     _pf.LDFVAL32();
 
@@ -684,6 +752,6 @@ void fir::postfix_writer::do_function_call_node(fir::function_call_node * const 
 
 void fir::postfix_writer::do_identity_node(fir::identity_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->argument()->accept(this, lvl); // determine the value
+  node->argument()->accept(this, lvl);
 }
 
