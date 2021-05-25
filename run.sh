@@ -21,7 +21,7 @@ do
 
     echo
     #show my output
-    #cat tests/expected/${singlename}.myout
+    cat tests/expected/${singlename}.myout
 
     #compare outputs
     diff tests/expected/${singlename}.nonlout tests/expected/${singlename}.out

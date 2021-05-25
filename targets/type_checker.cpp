@@ -536,9 +536,6 @@ void fir::type_checker::do_function_declaration_node(fir::function_declaration_n
   else
     id = node->identifier();
 
-  // TODO verificar se e externa e falhar se for
-  // TODO verificar se e void e tem def ret val
-
   // remember symbol so that args know
   auto function = fir::make_symbol(node->qualifier(), node->type(), id, false, true, true);
 
@@ -562,6 +559,11 @@ void fir::type_checker::do_function_declaration_node(fir::function_declaration_n
 void fir::type_checker::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
   std::string id;
 
+  // TODO verificar se e externa e falhar se for
+  if(node->qualifier() == tIMPORT)
+    throw "Cannot define external functions.";
+  // TODO verificar se e void e tem def ret val
+
   // "fix" naming issues...
   if (node->identifier() == "fir")
     id = "_main";
@@ -583,9 +585,8 @@ void fir::type_checker::do_function_definition_node(fir::function_definition_nod
   // TODO talvez falte verificacao de argumentos iguais a declaracao
   std::shared_ptr<fir::symbol> previous = _symtab.find(function->name());
   if (previous) {
-    if (previous->forward()
-        && ((previous->qualifier() == tPUBLIC && node->qualifier() == tPUBLIC)
-            || (previous->qualifier() == tPRIVATE && node->qualifier() == tPRIVATE))) {
+    if ( previous->forward() 
+      && (previous->qualifier() == node->qualifier() || (previous->qualifier() == tIMPORT && node->qualifier() == tPUBLIC))){
       _symtab.replace(function->name(), function);
       _parent->set_new_symbol(function);
     } else {

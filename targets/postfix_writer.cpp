@@ -154,7 +154,7 @@ void fir::postfix_writer::do_variable_node(cdk::variable_node * const node, int 
   // _pf.ADDR(node->name());
   std::string id = node-> name();
   auto symbol = _symtab.find(id);
-  if (symbol->global()) {
+  if (symbol->global() && !symbol->isFunction()) {
     _pf.ADDR(symbol->name());
   } else {
     _pf.LOCAL(symbol->offset());
@@ -313,7 +313,8 @@ void fir::postfix_writer::do_if_else_node(fir::if_else_node * const node, int lv
 //---------------------------------------------------------------------------
 //  TODO 
 void fir::postfix_writer::do_return_node(fir::return_node * const node, int lvl) {
-
+  ASSERT_SAFE_EXPRESSIONS;
+  _pf.JMP(_currentBodyRetLabel);
 }
 
 //---------------------------------------------------------------------------
@@ -365,7 +366,7 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   }
 
   _function = new_symbol();
-  _function -> set_offset(0);
+  _function -> set_offset(-node->type()->size());
   _functions_to_declare.erase(_function->name());  // just in case
   reset_new_symbol();
 
@@ -398,7 +399,7 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
 
   // the following flag is a slight hack: it won't work with nested functions
   _inFunctionBody = true;
-  
+
   if (node->def_retval()) {
     node->def_retval()->accept(this, lvl);
     if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER)) {
@@ -412,6 +413,12 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
     } else {
       error(node->lineno(), "cannot initialize default return value");
     }
+  } else {
+    if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_POINTER)) {
+      _pf.INT(0);
+      _pf.LOCAL(_offset);
+      _pf.STINT();
+    } 
   }
 
   os() << "        ;; before body " << std::endl;
@@ -420,10 +427,10 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   _inFunctionBody = false;
   _returnSeen = false;
 
+  _pf.ALIGN();
+  _pf.LABEL(_currentBodyRetLabel);
   if(!node->is_typed(cdk::TYPE_VOID)){
-    std::cout << "NO VOID: " << std::endl;
     if(!node->is_typed(cdk::TYPE_DOUBLE)){
-      std::cout << "INT " <<std::endl;
       _pf.LOCAL(-node->type()->size());
       _pf.LDINT();
       _pf.STFVAL32();
@@ -434,9 +441,6 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
       _pf.STFVAL64();
     }
   }
-
-  _pf.ALIGN();
-  _pf.LABEL(_currentBodyRetLabel);
   _pf.LEAVE();
   _pf.RET();
 
