@@ -17,7 +17,6 @@ do
 
     #show my output
     #cat tests/expected/${exec}.myout 
-
     #compare outputs    
     diff tests/expected/${exec}.myout tests/abad_expected/out/${exec}.out
 

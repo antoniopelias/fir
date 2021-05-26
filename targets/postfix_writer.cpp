@@ -21,14 +21,36 @@ void fir::postfix_writer::do_double_node(cdk::double_node * const node, int lvl)
     _pf.SDOUBLE(node->value());    // double is on the DATA segment
   }
 }
+
 void fir::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
-  // EMPTY
+  ASSERT_SAFE_EXPRESSIONS;
+  node->argument()->accept(this, lvl + 2);
+  _pf.INT(0);
+  _pf.EQ();
 }
+
 void fir::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
-  // EMPTY
+  ASSERT_SAFE_EXPRESSIONS;
+  int lbl = ++_lbl;
+  node->left()->accept(this, lvl + 2);
+  _pf.DUP32();
+  _pf.JZ(mklbl(lbl));
+  node->right()->accept(this, lvl + 2);
+  _pf.AND();
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(lbl));
 }
+
 void fir::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
-  // EMPTY
+  ASSERT_SAFE_EXPRESSIONS;
+  int lbl = ++_lbl;
+  node->left()->accept(this, lvl + 2);
+  _pf.DUP32();
+  _pf.JNZ(mklbl(lbl));
+  node->right()->accept(this, lvl + 2);
+  _pf.OR();
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(lbl));
 }
 
 //---------------------------------------------------------------------------
@@ -81,64 +103,126 @@ void fir::postfix_writer::do_neg_node(cdk::neg_node * const node, int lvl) {
 
 void fir::postfix_writer::do_add_node(cdk::add_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  _pf.ADD();
+  node->left()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT)) {
+    _pf.I2D();
+  } else if (node->is_typed(cdk::TYPE_POINTER) && node->left()->is_typed(cdk::TYPE_INT)) {
+    //TODO verificar pointer
+    _pf.INT(3);
+    _pf.SHTL();
+  }
+
+  node->right()->accept(this, lvl + 2);
+  if ( node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT)) {
+    _pf.I2D();
+  } else if (node->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_INT)) {
+    //TODO verificar pointer
+    _pf.INT(3);
+    _pf.SHTL();
+  }
+
+  if (node->is_typed(cdk::TYPE_DOUBLE))
+    _pf.DADD();
+  else
+    _pf.ADD();
 }
+
 void fir::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  _pf.SUB();
+  node->left()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT)) 
+    _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT)) {
+    _pf.I2D();
+  } else if (node->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_INT)) {
+    _pf.INT(3);
+    _pf.SHTL();
+  }
+
+  if (node->is_typed(cdk::TYPE_DOUBLE))
+    _pf.DSUB();
+  else
+    _pf.SUB();
 }
+
 void fir::postfix_writer::do_mul_node(cdk::mul_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  _pf.MUL();
+  node->left()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->is_typed(cdk::TYPE_INT)) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->is_typed(cdk::TYPE_INT)) _pf.I2D();
+
+  if (node->is_typed(cdk::TYPE_DOUBLE))
+    _pf.DMUL();
+  else
+    _pf.MUL();
 }
+
 void fir::postfix_writer::do_div_node(cdk::div_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.DIV();
+
+  node->left()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT))
+   _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT))
+   _pf.I2D();
+
+  if (node->is_typed(cdk::TYPE_DOUBLE))
+    _pf.DDIV();
+  else
+    _pf.DIV();
 }
+
 void fir::postfix_writer::do_mod_node(cdk::mod_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.MOD();
 }
+
 void fir::postfix_writer::do_lt_node(cdk::lt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.LT();
 }
+
 void fir::postfix_writer::do_le_node(cdk::le_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.LE();
 }
+
 void fir::postfix_writer::do_ge_node(cdk::ge_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.GE();
 }
+
 void fir::postfix_writer::do_gt_node(cdk::gt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.GT();
 }
+
 void fir::postfix_writer::do_ne_node(cdk::ne_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
   node->right()->accept(this, lvl);
   _pf.NE();
 }
+
 void fir::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl);
@@ -175,20 +259,38 @@ void fir::postfix_writer::do_rvalue_node(cdk::rvalue_node * const node, int lvl)
 
 void fir::postfix_writer::do_assignment_node(cdk::assignment_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->rvalue()->accept(this, lvl); // determine the new value
-  _pf.DUP32();
-  if (new_symbol() == nullptr) {
-    node->lvalue()->accept(this, lvl); // where to store the value
+  // TODO VER ENUNCIADO E APAGAR SE INUTIL
+  // node->rvalue()->accept(this, lvl); // determine the new value
+  // _pf.DUP32();
+  // if (new_symbol() == nullptr) {
+  //   node->lvalue()->accept(this, lvl); // where to store the value
+  // } else {
+  //     std::cout << "ELSE ENTERED" << std::endl << std::flush;
+  //   _pf.DATA(); // variables are all global and live in DATA
+  //   _pf.ALIGN(); // make sure we are aligned
+  //   _pf.LABEL(new_symbol()->name()); // name variable location
+  //   reset_new_symbol();
+  //   _pf.SINT(0); // initialize it to 0 (zero)
+  //   _pf.TEXT(); // return to the TEXT segment
+  //   node->lvalue()->accept(this, lvl);  //DAVID: bah!
+  // }
+  // _pf.STINT(); // store the value at address
+
+
+  node->rvalue()->accept(this, lvl + 2);
+  if (node->is_typed(cdk::TYPE_DOUBLE)) {
+    if (node->rvalue()->is_typed(cdk::TYPE_INT)) _pf.I2D();
+    _pf.DUP64();
   } else {
-    _pf.DATA(); // variables are all global and live in DATA
-    _pf.ALIGN(); // make sure we are aligned
-    _pf.LABEL(new_symbol()->name()); // name variable location
-    reset_new_symbol();
-    _pf.SINT(0); // initialize it to 0 (zero)
-    _pf.TEXT(); // return to the TEXT segment
-    node->lvalue()->accept(this, lvl);  //DAVID: bah!
+    _pf.DUP32();
   }
-  _pf.STINT(); // store the value at address
+
+  node->lvalue()->accept(this, lvl);
+  if (node->is_typed(cdk::TYPE_DOUBLE)) {
+    _pf.STDOUBLE();
+  } else {
+    _pf.STINT();
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -406,8 +508,8 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
       _pf.LOCAL(_offset);
       _pf.STINT();
     } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
-      if (node->def_retval()->is_typed(cdk::TYPE_INT))
-        _pf.I2D();
+      if (node->def_retval()->type()->name() == cdk::TYPE_INT)
+         _pf.I2D();
       _pf.LOCAL(_offset);
       _pf.STDOUBLE();
     } else {
@@ -430,13 +532,12 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   _pf.ALIGN();
   _pf.LABEL(_currentBodyRetLabel);
   if(!node->is_typed(cdk::TYPE_VOID)){
+    _pf.LOCAL(-node->type()->size());
     if(!node->is_typed(cdk::TYPE_DOUBLE)){
-      _pf.LOCAL(-node->type()->size());
       _pf.LDINT();
       _pf.STFVAL32();
     }
     else{
-      _pf.LOCAL(-node->type()->size());
       _pf.LDDOUBLE();
       _pf.STFVAL64();
     }

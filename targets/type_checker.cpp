@@ -564,6 +564,11 @@ void fir::type_checker::do_function_definition_node(fir::function_definition_nod
     throw "Cannot define external functions.";
   // TODO verificar se e void e tem def ret val
 
+  //TODO verificar tipo do ret val
+  // node->def_retval()->type(node->type());
+  if (node->def_retval())
+    node->def_retval()->accept(this, lvl);
+
   // "fix" naming issues...
   if (node->identifier() == "fir")
     id = "_main";
