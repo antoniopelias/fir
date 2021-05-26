@@ -245,7 +245,7 @@ void fir::postfix_writer::do_variable_node(cdk::variable_node * const node, int 
 void fir::postfix_writer::do_rvalue_node(cdk::rvalue_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->lvalue()->accept(this, lvl);
-  if (node->type()->name() == cdk::TYPE_DOUBLE) {
+  if (node->is_typed(cdk::TYPE_DOUBLE)) {
     _pf.LDDOUBLE();
   } else {
     // integers, pointers, and strings
@@ -275,7 +275,8 @@ void fir::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 
   node->rvalue()->accept(this, lvl + 2);
   if (node->is_typed(cdk::TYPE_DOUBLE)) {
-    if (node->rvalue()->is_typed(cdk::TYPE_INT)) _pf.I2D();
+    if (node->rvalue()->is_typed(cdk::TYPE_INT))
+      _pf.I2D();
     _pf.DUP64();
   } else {
     _pf.DUP32();
@@ -309,14 +310,27 @@ void fir::postfix_writer::do_evaluation_node(fir::evaluation_node * const node, 
 }
 
 //---------------------------------------------------------------------------
-
+// TODO CHECK IFs
 void fir::postfix_writer::do_read_node(fir::read_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  _pf.CALL("readi");
-  _pf.LDFVAL32();
-  // node->argument()->accept(this, lvl);
-  node->accept(this, lvl);
-  _pf.STINT();
+  // _pf.CALL("readi");
+  // _pf.LDFVAL32();
+  // // node->argument()->accept(this, lvl);
+  // node->accept(this, lvl);
+  // _pf.STINT();
+
+  if (node->is_typed(cdk::TYPE_DOUBLE)) {
+    _functions_to_declare.insert("readd");
+    _pf.CALL("readd");
+    _pf.LDFVAL64();
+  } else if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_UNSPEC)) {
+    _functions_to_declare.insert("readi");
+    _pf.CALL("readi");
+    _pf.LDFVAL32();
+  }  else {
+    std::cerr << "FATAL: " << node->lineno() << ": cannot read type" << std::endl;
+    return;
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -526,7 +540,7 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   node -> body() -> accept(this, lvl + 4);
   os() << "        ;; after body " << std::endl;
   _inFunctionBody = false;
-  _returnSeen = false;
+  // _returnSeen = false;
 
   if(!node->is_typed(cdk::TYPE_VOID)){
     _pf.LOCAL(-node->type()->size());
@@ -555,14 +569,12 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
 
 void fir::postfix_writer::do_variable_declaration_node(fir::variable_declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-
   auto id = node->identifier();
 
   //std::cout << "INITIAL OFFSET: " << _offset << std::endl;
 
   // type size?
   int offset = 0, typesize = node->type()->size(); // in bytes
-  //std::cout << "ARG: " << id << ", " << typesize << std::endl;
   if (_inFunctionBody) {
     //std::cout << "IN BODY" << std::endl;
     _offset -= typesize;
@@ -756,7 +768,7 @@ void fir::postfix_writer::do_write_node(fir::write_node * const node, int lvl) {
 
     std::shared_ptr<cdk::basic_type> etype = child->type();
     child->accept(this, lvl); // expression to print
-    if (etype->name() == cdk::TYPE_INT) {
+    if (etype->name() == cdk::TYPE_INT || etype->name() == cdk::TYPE_UNSPEC) {
       _functions_to_declare.insert("printi");
       _pf.CALL("printi");
       _pf.TRASH(4); // trash int
@@ -784,7 +796,7 @@ void fir::postfix_writer::do_writeln_node(fir::writeln_node * const node, int lv
 
     std::shared_ptr<cdk::basic_type> etype = child->type();
     child->accept(this, lvl); // expression to print
-    if (etype->name() == cdk::TYPE_INT) {
+    if (etype->name() == cdk::TYPE_INT || etype->name() == cdk::TYPE_UNSPEC) {
       _functions_to_declare.insert("printi");
       _pf.CALL("printi");
       _pf.TRASH(4); // trash int

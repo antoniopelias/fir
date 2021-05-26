@@ -11,7 +11,6 @@
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_sequence_node(cdk::sequence_node *const node, int lvl) {
-  // TODO 
   for (size_t i = 0; i < node->size(); i++)
     node->node(i)->accept(this, lvl);
 }
@@ -152,7 +151,12 @@ void fir::type_checker::IDExpression(cdk::binary_operation_node *const node, int
     node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
   else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT))
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-  else {
+  
+  else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  }else {
     // TODO tipos nao definidos
   }
 } 
@@ -181,9 +185,28 @@ void fir::type_checker::PIDExpression(cdk::binary_operation_node *const node, in
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-  } else {
-    throw std::string("wrong types in binary expression");
+  } else if(node->left()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *inputl = dynamic_cast<fir::read_node*>(node->left());
+
+    if(inputl != nullptr) {
+      node->left()->type(node->right()->type());
+      node->type(node->right()->type());
+    }
+    else
+      throw std::string("Unknown node with unspecified type.");
+  } else if(node->right()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *inputr = dynamic_cast<fir::read_node*>(node->right());
+
+    if(inputr != nullptr) {
+      node->right()->type(node->left()->type());
+      node->type(node->left()->type());
+    }
+    else
+      throw std::string("Unknown node with unspecified type.");
   }
+  else {
+      throw std::string("wrong types in binary expression");
+    }
 }
 
 void fir::type_checker::do_add_node(cdk::add_node *const node, int lvl) {
@@ -265,6 +288,7 @@ void fir::type_checker::do_assignment_node(cdk::assignment_node *const node, int
   ASSERT_UNSPEC;
   node->lvalue()->accept(this, lvl + 2);
   node->rvalue()->accept(this, lvl + 2);
+
   if(node->lvalue()->is_typed(cdk::TYPE_UNSPEC))
     throw std::string("Left value must have a type.");
 
@@ -287,7 +311,6 @@ void fir::type_checker::do_assignment_node(cdk::assignment_node *const node, int
     else
       throw std::string("Unknown node with unspecified type");
   }
-
   if(node->lvalue()->is_typed(cdk::TYPE_INT) && node->rvalue()->is_typed(cdk::TYPE_INT)) {
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   }
@@ -321,12 +344,8 @@ void fir::type_checker::do_evaluation_node(fir::evaluation_node *const node, int
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_read_node(fir::read_node *const node, int lvl) {
-  try {
-    node->accept(this, lvl);
-  } catch (const std::string &id) {
-    //TODO erro correto?
-    throw "undeclared variable '" + id + "'";
-  }
+  ASSERT_UNSPEC;
+  node->type(cdk::primitive_type::create(0, cdk::TYPE_UNSPEC));
 }
 
 //---------------------------------------------------------------------------
@@ -380,7 +399,7 @@ void fir::type_checker::do_if_else_node(fir::if_else_node *const node, int lvl) 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_return_node(fir::return_node *const node, int lvl) {
-  //TODO acho que e empty mas o ruben nao
+  //TODO s
 }
 
 //---------------------------------------------------------------------------
@@ -512,6 +531,9 @@ void fir::type_checker::do_function_call_node(fir::function_call_node * const no
   if (node->arguments()->size() == symbol->number_of_arguments()) {
     node->arguments()->accept(this, lvl + 4);
     for (size_t ax = 0; ax < node->arguments()->size(); ax++) {
+      // FIXME boa pratica?
+      if (node->argument(ax)->is_typed(cdk::TYPE_UNSPEC))
+       node->argument(ax)->type(symbol->argument_type(ax));
       if (node->argument(ax)->type() == symbol->argument_type(ax)) continue;
       if (symbol->argument_is_typed(ax, cdk::TYPE_DOUBLE) && node->argument(ax)->is_typed(cdk::TYPE_INT)) continue;
       throw std::string("type mismatch for argument " + std::to_string(ax + 1) + " of '" + id + "'.");
@@ -601,5 +623,4 @@ void fir::type_checker::do_function_definition_node(fir::function_definition_nod
     _symtab.insert(function->name(), function);
     _parent->set_new_symbol(function);
   }
-  //TODO verificar def ret val
 }
