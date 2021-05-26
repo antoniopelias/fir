@@ -14,7 +14,6 @@ do
     ld -m elf_i386 -o ${pathname} ${pathname}.o -L$HOME/compiladores/root/usr/lib -lrts
     ./${pathname} > tests/expected/${exec}.myout
 
-
     #show my output
     #cat tests/expected/${exec}.myout 
     #compare outputs    
@@ -23,5 +22,3 @@ do
     #clean-up
     rm ${pathname}.asm ${pathname}.o ${pathname} tests/expected/${exec}.myout
 done
-
-

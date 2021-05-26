@@ -163,10 +163,6 @@ void fir::postfix_writer::do_mul_node(cdk::mul_node * const node, int lvl) {
 
 void fir::postfix_writer::do_div_node(cdk::div_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  _pf.DIV();
-
   node->left()->accept(this, lvl + 2);
   if (node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT))
    _pf.I2D();
@@ -431,13 +427,16 @@ void fir::postfix_writer::do_block_node(fir::block_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void fir::postfix_writer::do_body_node(fir::body_node * const node, int lvl) {
+  _symtab.push();
   if (node -> prologue())
     node -> prologue() -> accept(this, lvl + 2);
   if (node -> block())
     node -> block() -> accept(this, lvl + 2);
+  _pf.ALIGN();
+  _pf.LABEL(_currentBodyRetLabel);
   if (node -> epilogue())
     node -> epilogue() -> accept(this, lvl + 2);
-
+  _symtab.pop();
 }
 
 //---------------------------------------------------------------------------
@@ -529,8 +528,6 @@ void fir::postfix_writer::do_function_definition_node(fir::function_definition_n
   _inFunctionBody = false;
   _returnSeen = false;
 
-  _pf.ALIGN();
-  _pf.LABEL(_currentBodyRetLabel);
   if(!node->is_typed(cdk::TYPE_VOID)){
     _pf.LOCAL(-node->type()->size());
     if(!node->is_typed(cdk::TYPE_DOUBLE)){
@@ -811,9 +808,10 @@ void fir::postfix_writer::do_writeln_node(fir::writeln_node * const node, int lv
 }
 
 //---------------------------------------------------------------------------
-// TODO
-void fir::postfix_writer::do_prologue_node(fir::prologue_node * const node, int lvl) {
 
+void fir::postfix_writer::do_prologue_node(fir::prologue_node * const node, int lvl) {
+  node -> declarations() -> accept(this, lvl + 4);
+  node -> instructions() -> accept(this, lvl + 4);
 }
 
 //---------------------------------------------------------------------------
