@@ -2,7 +2,6 @@
 *.jpg
 *.xml
 *.dot
-*.fir
 *.output
 *.jar
 *.asm
