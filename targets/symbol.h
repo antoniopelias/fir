@@ -24,14 +24,6 @@ namespace fir {
         _name(name), _value(0), _qualifier(qualifier), _type(type), _initialized(initialized), _function(
             function), _forward(forward) {
     }
-  /*
-    symbol(std::shared_ptr<cdk::basic_type> type, const std::string &name, long value) :
-        _name(name), _value(value), _type(type), _function(false) {
-    }
-
-    symbol(std::shared_ptr<cdk::basic_type> type, const std::string &name, long value, bool function) :
-        _name(name), _value(value), _type(type), _function(function) {
-    }*/
 
     virtual ~symbol() {
       // EMPTY

@@ -18,7 +18,7 @@ namespace fir {
     std::set<std::string> _functions_to_declare;
 
     // semantic analysis
-    bool _errors, _inFunction, _inFunctionName, _inFunctionArgs, _inFunctionBody;
+    bool _errors, _inFunction, _inFunctionName, _inFunctionArgs, _inFunctionBody, _inFunctionEpilogue;
     bool _returnSeen; // when building a function
     std::stack<int> _whileCond, _whileEnd;
     std::stack<bool> _globals; // for deciding whether a variable is global or not
@@ -26,10 +26,10 @@ namespace fir {
     int _offset; // current framepointer offset (0 means no vars defined)
     cdk::typename_type _lvalueType;
 
-    // remember function name for resolving '@'
     std::string _currentFunctionName;
-    std::string _currentBodyRetLabel; // where to jump when a return occurs of an exclusive section ends
-    
+    std::string _currentBodyEpilogueLabel; // where to jump when a return occurs of an exclusive section ends
+    std::string _currentBodyEndLabel;
+
     cdk::basic_postfix_emitter &_pf;
     int _lbl;
 
@@ -37,8 +37,8 @@ namespace fir {
     postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<fir::symbol> &symtab,
                    cdk::basic_postfix_emitter &pf) :
       basic_ast_visitor(compiler), _symtab(symtab), _errors(false), _inFunction(false), _inFunctionName(false), _inFunctionArgs(
-            false), _inFunctionBody(false), _returnSeen(false), _function(nullptr), _offset(0), _lvalueType(
-            cdk::TYPE_VOID), _currentFunctionName(""), _currentBodyRetLabel(""), _pf(pf), _lbl(0) {
+            false), _inFunctionBody(false), _inFunctionEpilogue(false), _returnSeen(false), _function(nullptr), _offset(0), _lvalueType(
+            cdk::TYPE_VOID), _currentFunctionName(""), _currentBodyEpilogueLabel(""), _currentBodyEndLabel("") , _pf(pf), _lbl(0) {
     }
 
   public:

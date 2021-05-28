@@ -57,7 +57,7 @@ void fir::type_checker::processUnaryExpression(cdk::unary_operation_node *const 
   else if (node->argument()->is_typed(cdk::TYPE_DOUBLE))
     node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
   else if (node->argument()->is_typed(cdk::TYPE_UNSPEC)) {
-    // TODO unspec pra float?
+    // When in doubt it is assumed to be int
     fir::read_node *read = dynamic_cast<fir::read_node*>(node->argument());
     if(read != nullptr) {
       node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -151,13 +151,33 @@ void fir::type_checker::IDExpression(cdk::binary_operation_node *const node, int
     node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
   else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT))
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-  
   else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
+    // TODO meter if read else throw?
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-  }else {
-    // TODO tipos nao definidos
+  } else if (node->left()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *readl = dynamic_cast<fir::read_node*>(node->left());
+
+    if(readl != nullptr) {
+      node->left()->type(node->right()->type());
+      node->type(node->right()->type());
+    }
+    else
+      throw std::string("Unknown node with unspecified type."); 
+  } else if (node->right()->is_typed(cdk::TYPE_UNSPEC)) {
+    fir::read_node *readr = dynamic_cast<fir::read_node*>(node->right());
+
+    if(readr != nullptr) {
+      node->right()->type(node->left()->type());
+      node->type(node->left()->type());
+    }
+    else
+      throw std::string("Unknown node with unspecified type.");
+  }
+  
+  else {
+    throw std::string("Wrong types in binary expression.");
   }
 } 
 
@@ -178,35 +198,89 @@ void fir::type_checker::PIDExpression(cdk::binary_operation_node *const node, in
     node->type(node->right()->type());
   } else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT)) {
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-  } else if (node->left()->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_POINTER)) {
-    // TODO
-  } else if (pp_allowed && node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    // TODO tipos nao definidos, pode estar incompleto ou errado
+  } else if (pp_allowed && node->left()->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_POINTER)) {
+    // TODO memoria contigua
+    std::shared_ptr<cdk::basic_type> left, right;
+    left = node->left()->type();
+    right = node->right()->type();
+    while (left->name() == cdk::TYPE_POINTER && right->name() == cdk::TYPE_POINTER) {
+      left = cdk::reference_type::cast(left)->referenced();
+      right = cdk::reference_type::cast(right)->referenced();
+    }
+    
+    if (left->name() != right -> name())
+      throw std::string("Pointers reference different types.");
+
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+
+  } else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if(node->left()->is_typed(cdk::TYPE_UNSPEC)) {
-    fir::read_node *inputl = dynamic_cast<fir::read_node*>(node->left());
+    fir::read_node *readl = dynamic_cast<fir::read_node*>(node->left());
 
-    if(inputl != nullptr) {
+    if(readl != nullptr) {
       node->left()->type(node->right()->type());
       node->type(node->right()->type());
     }
     else
       throw std::string("Unknown node with unspecified type.");
   } else if(node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    fir::read_node *inputr = dynamic_cast<fir::read_node*>(node->right());
+    fir::read_node *readr = dynamic_cast<fir::read_node*>(node->right());
 
-    if(inputr != nullptr) {
+    if(readr != nullptr) {
       node->right()->type(node->left()->type());
       node->type(node->left()->type());
-    }
-    else
+    } else{
       throw std::string("Unknown node with unspecified type.");
+    }
   }
   else {
-      throw std::string("wrong types in binary expression");
+      throw std::string("Wrong types in binary expression.");
     }
+}
+
+void fir::type_checker::do_GeneralLogicalExpression(cdk::binary_operation_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  node->right()->accept(this, lvl + 2);
+  if (node->left()->type() != node->right()->type() && 
+  ((!node->left()->is_typed(cdk::TYPE_INT) && !node->right()->is_typed(cdk::TYPE_DOUBLE)) ||
+  (!node->right()->is_typed(cdk::TYPE_INT) && !node->left()->is_typed(cdk::TYPE_DOUBLE)))) { //TODO comparar ints e doubles
+    throw std::string("same type expected on both sides of equality operator");
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+}
+
+void fir::type_checker::do_ScalarLogicalExpression(cdk::binary_operation_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_INT) && !node->left()->is_typed(cdk::TYPE_DOUBLE)) {
+    throw std::string("integer or double expression expected in binary logical expression (left)");
+  }
+
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_INT) && !node->right()->is_typed(cdk::TYPE_DOUBLE)) {
+    throw std::string("integer or double expression expected in binary logical expression (right)");
+  }
+
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+}
+
+void fir::type_checker::do_BooleanLogicalExpression(cdk::binary_operation_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("integer expression expected in binary expression");
+  }
+
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("integer expression expected in binary expression");
+  }
+
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 void fir::type_checker::do_add_node(cdk::add_node *const node, int lvl) {
@@ -229,35 +303,35 @@ void fir::type_checker::do_mod_node(cdk::mod_node *const node, int lvl) {
   IExpression(node, lvl);
 }
 void fir::type_checker::do_lt_node(cdk::lt_node *const node, int lvl) {
-  IDExpression(node, lvl); // TODO possivelmente errado
+  do_ScalarLogicalExpression(node, lvl);
 }
 void fir::type_checker::do_le_node(cdk::le_node *const node, int lvl) {
-  IDExpression(node, lvl); // TODO possivelmente errado
+  do_ScalarLogicalExpression(node, lvl);
 }
 
 void fir::type_checker::do_ge_node(cdk::ge_node *const node, int lvl) {
-  IDExpression(node, lvl); // TODO possivelmente errado
+  do_ScalarLogicalExpression(node, lvl);
 }
 
 void fir::type_checker::do_gt_node(cdk::gt_node *const node, int lvl) {
-  IDExpression(node, lvl); // TODO possivelmente errado
+  do_ScalarLogicalExpression(node, lvl);
 }
 
 void fir::type_checker::do_ne_node(cdk::ne_node *const node, int lvl) {
-  PIDExpression(node, lvl); // TODO errado
+  do_GeneralLogicalExpression(node, lvl);
 }
 
 void fir::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
-  PIDExpression(node, lvl); // TODO errado
+  do_GeneralLogicalExpression(node, lvl);
 }
 
 
 void fir::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
-  IDExpression(node, lvl); // TODO possivelmente errado
+  do_BooleanLogicalExpression(node, lvl);
 }
 
 void fir::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
-  IDExpression(node, lvl); // TODO possivelmente errado
+  do_BooleanLogicalExpression(node, lvl);
 }
 
 //---------------------------------------------------------------------------
@@ -326,6 +400,13 @@ void fir::type_checker::do_assignment_node(cdk::assignment_node *const node, int
     //if(n == nullptr)
       //TODO: check pointer level     
       //typeOfPointer(cdk::reference_type_cast(node->lvalue()->type()), cdk::reference_type_cast(node->rvalue()->type()));
+    
+    // std::shared_ptr<cdk::basic_type> t;
+    // t = node->lvalue()->type();
+    // while (t->name() == cdk::TYPE_POINTER) {
+    //   t = cdk::reference_type::cast(t)->referenced();
+    // }
+    // node->type(t);
     node->type(node->lvalue()->type());
   }
   else {
@@ -345,7 +426,8 @@ void fir::type_checker::do_evaluation_node(fir::evaluation_node *const node, int
 
 void fir::type_checker::do_read_node(fir::read_node *const node, int lvl) {
   ASSERT_UNSPEC;
-  node->type(cdk::primitive_type::create(0, cdk::TYPE_UNSPEC));
+  // TODO ma ideia?
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_UNSPEC));
 }
 
 //---------------------------------------------------------------------------
@@ -399,7 +481,7 @@ void fir::type_checker::do_if_else_node(fir::if_else_node *const node, int lvl) 
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_return_node(fir::return_node *const node, int lvl) {
-  //TODO s
+  //EMPTY
 }
 
 //---------------------------------------------------------------------------
@@ -431,6 +513,15 @@ void fir::type_checker::do_body_node(fir::body_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_variable_declaration_node(fir::variable_declaration_node * const node, int lvl) {
+  if(_function) {
+    if(node->qualifier() == tIMPORT) {
+      throw std::string("variable '" + node->identifier() + "' must not be declared extern in function");
+    }
+    else if(node->qualifier() == tPUBLIC) {
+      throw std::string("variable '" + node->identifier() + "' must not be declared public in function");
+    }
+  }
+
   if (node->initializer() != nullptr) {
     node->initializer()->accept(this, lvl + 2);
     if (node->initializer()->is_typed(cdk::TYPE_UNSPEC)){
@@ -470,6 +561,7 @@ void fir::type_checker::do_variable_declaration_node(fir::variable_declaration_n
 
   const std::string &id = node->identifier();
   auto symbol = fir::make_symbol(node->qualifier(), node->type(), id, (bool)node->initializer(), false);
+  std::shared_ptr<fir::symbol> previous = _symtab.find(id);
   if (_symtab.insert(id, symbol)) {
     _parent->set_new_symbol(symbol);  // advise parent that a symbol has been inserted
   } else {
@@ -480,7 +572,6 @@ void fir::type_checker::do_variable_declaration_node(fir::variable_declaration_n
 //---------------------------------------------------------------------------
 
 void fir::type_checker::do_address_of_node(fir::address_of_node * const node, int lvl) {
-  //TODO verificar se e mesmo assim
   ASSERT_UNSPEC;
   node->lvalue()->accept(this, lvl + 2);
   node->type(cdk::reference_type::create(4, node->lvalue()->type()));
@@ -501,9 +592,8 @@ void fir::type_checker::do_stack_alloc_node(fir::stack_alloc_node * const node, 
   if (!node->argument()->is_typed(cdk::TYPE_INT)) {
     throw std::string("integer expression expected in allocation expression");
   }
-  //RUBEN TODO FIXME
-  auto mytype = cdk::reference_type::create(4, cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
-  node->type(mytype);
+  // TODO int float unspec ?
+  node->type(cdk::primitive_type::create(0, cdk::TYPE_UNSPEC));
 }
 
 //---------------------------------------------------------------------------
@@ -568,8 +658,18 @@ void fir::type_checker::do_function_declaration_node(fir::function_declaration_n
 
   std::shared_ptr<fir::symbol> previous = _symtab.find(function->name());
   if (previous) {
-    // TODO verificar argumentos, conflitos possiveis
-    throw std::string("conflicting declaration for '" + function->name() + "'");
+    bool confliting = false;
+    if (node->arguments()->size() == previous ->number_of_arguments()){
+      for (size_t ax = 0; ax < node->arguments()->size(); ax++){
+        confliting = confliting || !(node->argument(ax)->is_typed(previous->argument_type(ax)->name()));
+        std::cout << !(node->argument(ax)->is_typed(node->argument(ax)->type()->name())) << std::endl;
+      }
+    }  else {
+      confliting = true;
+    }
+    if (confliting) {
+      throw std::string("conflicting declaration for '" + function->name() + "'");
+    }
   } else {
     _symtab.insert(function->name(), function);
     _parent->set_new_symbol(function);
@@ -581,16 +681,15 @@ void fir::type_checker::do_function_declaration_node(fir::function_declaration_n
 void fir::type_checker::do_function_definition_node(fir::function_definition_node * const node, int lvl) {
   std::string id;
 
-  // TODO verificar se e externa e falhar se for
   if(node->qualifier() == tIMPORT)
     throw "Cannot define external functions.";
-  // TODO verificar se e void e tem def ret val
 
-  //TODO verificar tipo do ret val
-  // node->def_retval()->type(node->type());
-  if (node->def_retval())
+  if (node->def_retval()){
     node->def_retval()->accept(this, lvl);
-
+    if (!(node->def_retval()->is_typed(node->type()->name()) || 
+          (node->def_retval()->is_typed(cdk::TYPE_INT) && node->is_typed(cdk::TYPE_DOUBLE))))
+          throw std::string("Incorrect return value type.");
+}
   // "fix" naming issues...
   if (node->identifier() == "fir")
     id = "_main";
@@ -598,8 +697,6 @@ void fir::type_checker::do_function_definition_node(fir::function_definition_nod
     id = "._main";
   else
     id = node->identifier();
-
-  // _inBlockReturnType = nullptr;
 
   // remember symbol so that args know
   auto function = fir::make_symbol(node->qualifier(), node->type(), id, false, true);
@@ -609,10 +706,17 @@ void fir::type_checker::do_function_definition_node(fir::function_definition_nod
     argtypes.push_back(node->argument(ax)->type());
   function->set_argument_types(argtypes);
 
-  // TODO talvez falte verificacao de argumentos iguais a declaracao
   std::shared_ptr<fir::symbol> previous = _symtab.find(function->name());
   if (previous) {
-    if ( previous->forward() 
+    bool confliting = false;
+    if (node->arguments()->size() == previous ->number_of_arguments()){
+      for (size_t ax = 0; ax < node->arguments()->size(); ax++){
+        confliting = confliting || !(node->argument(ax)->is_typed(previous->argument_type(ax)->name()));
+      }
+    }  else {
+      confliting = true;
+    }
+    if (!confliting &&  previous->forward() 
       && (previous->qualifier() == node->qualifier() || (previous->qualifier() == tIMPORT && node->qualifier() == tPUBLIC))){
       _symtab.replace(function->name(), function);
       _parent->set_new_symbol(function);

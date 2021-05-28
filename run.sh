@@ -15,7 +15,10 @@ do
     ./${pathname} > tests/expected/${exec}.myout
 
     #show my output
-    #cat tests/expected/${exec}.myout 
+    if [ $2 = "out" ]
+    then 
+        cat tests/expected/${exec}.myout 
+    fi
     #compare outputs    
     diff tests/expected/${exec}.myout tests/abad_expected/out/${exec}.out
 
